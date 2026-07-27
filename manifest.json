@@ -1,0 +1,10 @@
+{
+  "name": "은정 Brain",
+  "short_name": "EJ Brain",
+  "start_url": "./index.html#/home",
+  "display": "standalone",
+  "background_color": "#f6f5ef",
+  "theme_color": "#526a5a",
+  "lang": "ko",
+  "icons": []
+}
