@@ -1,150 +1,28 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#fffaf6" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="EJ Brain" />
-  <title>EJ Brain</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#526a5a">
+  <meta name="description" content="업무, 육아, 자산, 이사와 목표를 관리하는 은정 Brain">
+  <title>은정 Brain</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="주 메뉴">
-      <div class="brand">
-        <div class="brand-mark">EJ</div>
-        <div><strong>EJ Brain</strong><small>은정님의 두 번째 뇌</small></div>
-      </div>
-
-      <nav class="side-nav">
-        <button class="side-item active" data-view="home"><span>⌂</span><b>오늘</b></button>
-        <button class="side-item" data-view="tasks"><span>✓</span><b>할 일</b></button>
-        <button class="side-item" data-view="inbox"><span>✦</span><b>AI 수집함</b></button>
-        <button class="side-item" data-view="projects"><span>▦</span><b>프로젝트</b></button>
-        <button class="side-item" data-view="categories"><span>☰</span><b>카테고리</b></button>
-      </nav>
-
-      <div class="sidebar-categories">
-        <div class="sidebar-label">카테고리</div>
-        <div id="sidebarCategoryList"></div>
-      </div>
-
-      <div class="sidebar-footer">
-        <button id="exportQuickBtn">백업 내보내기</button>
-        <small>현재 데이터는 이 브라우저에 저장돼요.</small>
-      </div>
+  <div class="shell">
+    <aside class="side">
+      <a class="brand" href="#/home"><b>EJ</b><span><strong>은정 Brain</strong><small>내 삶의 통합 관리실</small></span></a>
+      <nav id="sideNav"></nav>
+      <button class="sync" data-do="sync"><i id="syncDot"></i><span><strong id="syncTitle">이 기기에 저장 중</strong><small id="syncText">PC·모바일 연결 설정</small></span></button>
     </aside>
-
-    <div class="workspace">
-      <header class="topbar">
-        <div>
-          <p class="date" id="todayText"></p>
-          <h1 id="pageTitle">오늘</h1>
-        </div>
-        <div class="top-actions">
-          <button class="search-button" id="focusInboxBtn">⌕ <span>빠른 입력</span></button>
-          <button class="icon-btn" id="settingsBtn" aria-label="설정">⋯</button>
-        </div>
-      </header>
-
-      <main class="dashboard" id="page">
-        <section class="hero-card">
-          <div class="hero-copy">
-            <span class="pill">EJ Brain</span>
-            <h2>은정님, 오늘도 하나씩 정리해볼까요?</h2>
-            <p id="briefingText">중요한 일부터 먼저 보여드릴게요.</p>
-          </div>
-          <div class="progress-panel">
-            <div class="progress-ring" id="progressRing"><span id="progressText">0%</span></div>
-            <div><b>전체 완료율</b><small id="progressCaption">완료 0개</small></div>
-          </div>
-        </section>
-
-        <section class="quick-capture" id="inboxSection">
-          <div class="capture-head">
-            <div><span class="section-kicker">AI INBOX</span><h3>무엇이든 적어보세요</h3></div>
-            <span class="capture-tip">생각난 그대로 적으면 자동 분류</span>
-          </div>
-          <textarea id="brainInput" rows="3" placeholder="예: 10월 경주여행 아쿠아필드 표 구매하기"></textarea>
-          <div class="capture-footer">
-            <div class="capture-options">
-              <select id="categorySelect"><option value="auto">AI 자동분류</option></select>
-              <input id="dateInput" type="date" aria-label="마감일" />
-            </div>
-            <button class="primary-btn" id="saveBrainBtn">정리해서 저장</button>
-          </div>
-          <div id="aiResult" class="result hidden"></div>
-        </section>
-
-        <section class="section-block" id="overviewSection">
-          <div class="section-title-row">
-            <div><span class="section-kicker">OVERVIEW</span><h3>오늘 한눈에 보기</h3></div>
-          </div>
-          <div class="summary-grid" id="stats"></div>
-        </section>
-
-        <div class="content-grid">
-          <section class="section-block task-section" id="tasksSection">
-            <div class="section-title-row">
-              <div><span class="section-kicker">FOCUS</span><h3>지금 챙길 일</h3></div>
-              <select id="taskFilter" class="mini-select">
-                <option value="open">미완료</option><option value="today">오늘</option><option value="all">전체</option><option value="done">완료</option>
-              </select>
-            </div>
-            <div id="taskList" class="task-list"></div>
-          </section>
-
-          <aside class="right-column">
-            <section class="section-block" id="projectsSection">
-              <div class="section-title-row"><div><span class="section-kicker">PROJECTS</span><h3>진행 중 프로젝트</h3></div></div>
-              <div id="projectList" class="project-list"></div>
-            </section>
-
-            <section class="section-block categories-section" id="categoriesSection">
-              <div class="section-title-row"><div><span class="section-kicker">CATEGORIES</span><h3>카테고리</h3></div><button class="text-btn" id="addCategoryBtn">추가</button></div>
-              <div id="categoryCards" class="category-grid"></div>
-            </section>
-          </aside>
-        </div>
-      </main>
-    </div>
-
-    <button class="fab" id="quickAdd" aria-label="할 일 추가">＋</button>
-    <nav class="bottom-nav">
-      <button class="bottom-item active" data-view="home"><span>⌂</span><small>홈</small></button>
-      <button class="bottom-item" data-view="tasks"><span>✓</span><small>할 일</small></button>
-      <button class="bottom-item" data-view="inbox"><span>✦</span><small>수집함</small></button>
-      <button class="bottom-item" data-view="projects"><span>▦</span><small>프로젝트</small></button>
-      <button class="bottom-item" data-view="categories"><span>☰</span><small>카테고리</small></button>
-    </nav>
+    <header class="mobileHead"><a class="brand" href="#/home"><b>EJ</b><strong>은정 Brain</strong></a><button class="iconBtn" data-do="sync">☁</button></header>
+    <main id="app"></main>
+    <button class="fab" data-do="quick">＋</button>
+    <nav class="bottom" id="bottomNav"></nav>
   </div>
-
-  <dialog id="taskDialog" class="sheet-dialog">
-    <form method="dialog" id="taskForm">
-      <div class="sheet-handle"></div>
-      <div class="dialog-head"><h3 id="taskDialogTitle">할 일 추가</h3><button value="cancel" class="close-btn">닫기</button></div>
-      <input id="editingTaskId" type="hidden" />
-      <label>할 일<input id="taskTitle" required placeholder="할 일을 입력하세요" /></label>
-      <label>카테고리<select id="taskCategory"></select></label>
-      <div class="two-col"><label>마감일<input id="taskDate" type="date" /></label><label>우선순위<select id="taskPriority"><option>보통</option><option>높음</option><option>낮음</option></select></label></div>
-      <label>메모<textarea id="taskNote" rows="3" placeholder="필요한 내용을 적어두세요"></textarea></label>
-      <button class="primary-btn dialog-save" value="default">저장</button>
-    </form>
-  </dialog>
-
-  <dialog id="settingsDialog" class="sheet-dialog settings-dialog">
-    <div class="settings-sheet">
-      <div class="sheet-handle"></div>
-      <div class="dialog-head"><h3>데이터 관리</h3><button class="close-btn" id="closeSettings">닫기</button></div>
-      <button class="settings-action" id="exportBtn">백업 파일 내보내기</button>
-      <label class="settings-action file-action">백업 파일 불러오기<input id="importFile" type="file" accept="application/json" /></label>
-      <button class="settings-action danger" id="resetBtn">모든 데이터 초기화</button>
-      <p class="settings-note">현재 버전은 기기별 브라우저에 저장됩니다. PC·휴대폰 동기화는 다음 단계에서 Firebase로 연결할 예정이에요.</p>
-    </div>
-  </dialog>
-
-  <script src="app.js"></script>
+  <div class="backdrop" id="backdrop" hidden><section class="modal"><header><div><small>EJ BRAIN</small><h2 id="modalTitle"></h2></div><button class="iconBtn" data-do="close">×</button></header><div id="modalBody"></div></section></div>
+  <div class="toast" id="toast"></div>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>
