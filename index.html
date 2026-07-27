@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#fffaf6" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="EJ Brain" />
+  <title>EJ Brain Mobile</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div>
+        <p class="date" id="todayText"></p>
+        <h1 id="pageTitle">오늘</h1>
+      </div>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">⋯</button>
+    </header>
+
+    <main class="page" id="page">
+      <section class="greeting-card">
+        <div>
+          <span class="pill">EJ Brain</span>
+          <h2>은정님, 오늘도 하나씩 정리해볼까요?</h2>
+          <p id="briefingText">중요한 일부터 먼저 보여드릴게요.</p>
+        </div>
+        <div class="progress-ring" id="progressRing"><span id="progressText">0%</span></div>
+      </section>
+
+      <section class="quick-capture">
+        <label for="brainInput">무엇이든 적어보세요</label>
+        <textarea id="brainInput" rows="3" placeholder="예: 10월 경주여행 아쿠아필드 표 구매하기"></textarea>
+        <div class="capture-options">
+          <select id="categorySelect"><option value="auto">AI 자동분류</option></select>
+          <input id="dateInput" type="date" aria-label="마감일" />
+        </div>
+        <button class="primary-btn" id="saveBrainBtn">정리해서 저장</button>
+        <div id="aiResult" class="result hidden"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">OVERVIEW</span>
+            <h3>오늘 한눈에 보기</h3>
+          </div>
+        </div>
+        <div class="summary-grid" id="stats"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">FOCUS</span>
+            <h3>지금 챙길 일</h3>
+          </div>
+          <select id="taskFilter" class="mini-select">
+            <option value="open">미완료</option>
+            <option value="today">오늘</option>
+            <option value="all">전체</option>
+            <option value="done">완료</option>
+          </select>
+        </div>
+        <div id="taskList" class="task-list"></div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">PROJECTS</span>
+            <h3>진행 중 프로젝트</h3>
+          </div>
+        </div>
+        <div id="projectList" class="project-list"></div>
+      </section>
+
+      <section class="section-block categories-section">
+        <div class="section-title-row">
+          <div>
+            <span class="section-kicker">CATEGORIES</span>
+            <h3>카테고리</h3>
+          </div>
+          <button class="text-btn" id="addCategoryBtn">추가</button>
+        </div>
+        <div id="categoryCards" class="category-scroll"></div>
+      </section>
+    </main>
+
+    <button class="fab" id="quickAdd" aria-label="할 일 추가">＋</button>
+
+    <nav class="bottom-nav">
+      <button class="bottom-item active" data-view="home"><span>⌂</span><small>홈</small></button>
+      <button class="bottom-item" data-view="tasks"><span>✓</span><small>할 일</small></button>
+      <button class="bottom-item" data-view="inbox"><span>✦</span><small>수집함</small></button>
+      <button class="bottom-item" data-view="projects"><span>▦</span><small>프로젝트</small></button>
+      <button class="bottom-item" data-view="categories"><span>☰</span><small>카테고리</small></button>
+    </nav>
+  </div>
+
+  <dialog id="taskDialog" class="sheet-dialog">
+    <form method="dialog" id="taskForm">
+      <div class="sheet-handle"></div>
+      <div class="dialog-head"><h3>할 일 추가</h3><button value="cancel" class="close-btn">닫기</button></div>
+      <label>할 일<input id="taskTitle" required placeholder="할 일을 입력하세요" /></label>
+      <label>카테고리<select id="taskCategory"></select></label>
+      <div class="two-col">
+        <label>마감일<input id="taskDate" type="date" /></label>
+        <label>우선순위<select id="taskPriority"><option>보통</option><option>높음</option><option>낮음</option></select></label>
+      </div>
+      <label>메모<textarea id="taskNote" rows="3" placeholder="필요한 내용을 적어두세요"></textarea></label>
+      <button class="primary-btn dialog-save" value="default">저장</button>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="sheet-dialog settings-dialog">
+    <div class="settings-sheet">
+      <div class="sheet-handle"></div>
+      <div class="dialog-head"><h3>데이터 관리</h3><button class="close-btn" id="closeSettings">닫기</button></div>
+      <button class="settings-action" id="exportBtn">백업 파일 내보내기</button>
+      <label class="settings-action file-action">백업 파일 불러오기<input id="importFile" type="file" accept="application/json" /></label>
+      <button class="settings-action danger" id="resetBtn">모든 데이터 초기화</button>
+      <p class="settings-note">데이터는 이 브라우저에 저장됩니다. 중요한 내용은 가끔 백업해 주세요.</p>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
