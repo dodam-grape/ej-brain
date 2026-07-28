@@ -1,38 +1,30 @@
-# 은정 Brain
+# 은정 Brain 2차 버전
 
-업무, 육아, 자산, 부동산·이사, 자기계발과 목표관리를 한곳에서 관리하는 개인용 웹앱입니다. PC에서는 왼쪽 메뉴, 모바일에서는 하단 고정 메뉴로 자동 전환됩니다.
+기존 Firebase/Google 로그인과 PC·모바일 동기화를 그대로 유지하면서 기능을 확장한 GitHub Pages용 버전입니다.
 
-## GitHub Pages 업로드
+## 교체 방법
 
-1. GitHub에서 새 저장소를 만듭니다. 저장소 이름 예시: `eunjeong-brain`
-2. 이 폴더 안의 파일을 모두 저장소 최상단에 올립니다. `index.html`이 폴더 안쪽이 아니라 가장 위에 있어야 합니다.
-3. 저장소의 `Settings → Pages`로 이동합니다.
-4. `Source`는 `Deploy from a branch`, `Branch`는 `main`, 폴더는 `/ (root)`를 선택하고 저장합니다.
-5. 잠시 후 `https://사용자이름.github.io/eunjeong-brain/` 주소로 접속합니다.
+1. 압축파일을 풉니다.
+2. GitHub의 `ej-brain` 저장소에서 `index.html`, `app.js`, `style.css`, `manifest.json`, `firebase-config.js`, `firestore.rules`, `README.md`를 새 파일로 교체합니다.
+3. `Commit changes`를 누릅니다.
+4. GitHub Pages 반영에는 보통 몇 분이 걸립니다. 화면이 그대로라면 강력 새로고침하거나 모바일 브라우저를 완전히 종료한 뒤 다시 접속합니다.
 
-## 저장과 PC·모바일 동기화
+## 이번 버전의 핵심
 
-Firebase 설정 전에도 입력한 내용은 현재 브라우저에 자동 저장됩니다. PC와 모바일에서 동일한 데이터를 보려면 다음 설정을 한 번 진행합니다.
+- 모든 기록에 추가·수정·삭제·저장
+- 업무계획과 색상 업무달력: BR(분홍), DD(주황), 중요(노랑), 보통(파랑)
+- 연간계획: 1~12월 × 업무·가족·도담·소담·자산
+- 도담·소담: 매일 루틴시간표·연간로드맵·성장로드맵
+- 여행: 계획과 기록
+- 카드실적: 신한·하나·롯데·삼성, 실적 포함/미포함, 목표까지 남은 금액
+- 월별 가계부
+- 자산관리: 현금·예금, 대출, 보험, 주식, 기타(대시보드 제외), 할부, 부동산
+- 부동산·이사: 진행률·비용·기한·메모
 
-1. [Firebase Console](https://console.firebase.google.com/)에서 새 프로젝트를 만듭니다.
-2. 프로젝트에 웹 앱을 추가하고 표시되는 `firebaseConfig` 값을 복사합니다.
-3. `Authentication → Sign-in method`에서 Google 로그인을 사용 설정합니다.
-4. `Authentication → Settings → Authorized domains`에 `사용자이름.github.io`를 추가합니다.
-5. `Firestore Database`를 만들고 프로덕션 모드로 시작합니다.
-6. 이 폴더의 `firestore.rules` 내용을 Firebase의 Firestore 규칙 화면에 붙여넣고 게시합니다.
-7. `firebase-config.js`의 빈 값에 Firebase에서 받은 값을 넣고 GitHub에 다시 올립니다.
-8. 은정 Brain의 왼쪽 아래 구름 버튼을 눌러 PC와 모바일에서 같은 Google 계정으로 로그인합니다.
+## 기존 데이터
 
-설정 후에는 할 일, 일정, 가계부, 자산정보와 각종 체크리스트가 기기 사이에서 자동으로 동기화됩니다.
+기존 Firebase 데이터는 새 구조에 맞게 자동 보완됩니다. 기존 할 일·일정·가계부·자산자료를 지우지 않고 새 항목을 추가합니다.
 
-## 1차 기능
+## 보안
 
-- Brain 빠른 수집과 업무·육아·자산·이사·자기계발·목표 스마트 분류
-- 업무 대시보드, 업무계획, 업무 달력
-- 할 일과 일정 입력·완료 처리
-- 도담·소담 기본 화면과 교육 로드맵
-- 자산 대시보드, 현 자산현황, 가계부, 월별 지출 분석
-- 부동산·이사 준비 체크리스트
-- 자기계발 및 목표 진척도
-
-요청에 따라 블로그 메뉴는 포함하지 않았습니다.
+`firestore.rules`는 기존에 Firebase 콘솔에 게시한 규칙과 동일합니다. 이미 게시했다면 Firebase 콘솔에서 다시 설정할 필요가 없습니다.
