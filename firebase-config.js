@@ -1,9 +1,9 @@
 /* PC·모바일 동기화를 켤 때 Firebase 콘솔에서 받은 값을 입력하세요. */
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyA1cAPNhzueaDiWaAM2jkD7D36CQQH1Y34",
+  authDomain: "ejbrain-a27fd.firebaseapp.com",
+  projectId: "ejbrain-a27fd",
+  storageBucket: "ejbrain-a27fd.firebasestorage.app",
+  messagingSenderId: "48128976619",
+  appId: "1:48128976619:web:e6bfe5cc094173d26a00ae",
 };
