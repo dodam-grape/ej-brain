@@ -192,13 +192,13 @@ function stat(label, value, copy, icon) { return `<article class="stat"><header>
 function empty(icon, text) { return `<div class="empty"><b>${icon}</b>${text}</div>`; }
 function tag(type, text) { return `<span class="tag ${type}">${text}</span>`; }
 
-function taskRows(items, limit = 99) {
+function taskRows(items, limit = 99, sourceKind = "tasks") {
   if (!items.length) return empty("✓", "등록된 항목이 없어요.");
   return `<div class="tasks">${items.slice(0, limit).map(item => `<article class="task">
-    <button class="check ${item.done ? "on" : ""}" data-do="toggle" data-kind="${item.category === "move" ? "moveItems" : "tasks"}" data-id="${item.id}">${item.done ? "✓" : ""}</button>
+    <button class="check ${item.done ? "on" : ""}" data-do="toggle" data-kind="${sourceKind}" data-id="${item.id}">${item.done ? "✓" : ""}</button>
     <div><h3 class="${item.done ? "done" : ""}">${esc(item.title)}</h3><small>${displayDate(item.date || item.due)}${item.memo ? ` · ${esc(item.memo)}` : ""}</small></div>
     ${item.category === "work" ? tag(`work-${item.workType || "normal"}`, WORK_TYPES.find(x => x[0] === (item.workType || "normal"))?.[1] || "보통") : tag(item.category || "move", LABEL[item.category] || item.group || "항목")}
-    ${actionButtons(item.category === "move" ? "moveItems" : "tasks", item.id)}
+    ${actionButtons(sourceKind, item.id)}
   </article>`).join("")}</div>`;
 }
 function eventRows(items, limit = 99) {
@@ -367,7 +367,7 @@ function moveView() {
   const totalCost = store.data.moveItems.reduce((sum, item) => sum + n(item.cost), 0);
   return `${pageHead("부동산·이사", "수리·견적·구매·처분·이전신청과 부동산 현황을 함께 관리해요.", `<button class="primary" data-do="moveItem">＋ 이사계획</button>`)}
   <section class="stats">${stat("진행률", `${rate}%`, `${done}/${mapped.length} 완료`, "✓")}${stat("예상비용", won(totalCost), "이사계획 합계", "₩")}${stat("목표일", "2027.03.06", "전세 만기·이사", "◷")}${stat("부동산", `${store.data.properties.length}건`, "자산현황과 연결", "⌂")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>이사계획</h2><p>그룹·기한·예상비용·메모</p></div><button class="textBtn" data-do="moveItem">＋ 추가</button></header><div class="panelBody">${taskRows(mapped)}</div></article><article class="panel"><header class="panelHead"><div><h2>부동산 현황</h2><p>구매가·현재시세·대출</p></div><button class="textBtn" data-do="assetItem" data-section="properties">＋ 추가</button></header><div class="panelBody">${assetRows("properties")}</div></article></section>`;
+  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>이사계획</h2><p>그룹·기한·예상비용·메모</p></div><button class="textBtn" data-do="moveItem">＋ 추가</button></header><div class="panelBody">${taskRows(mapped, 99, "moveItems")}</div></article><article class="panel"><header class="panelHead"><div><h2>부동산 현황</h2><p>구매가·현재시세·대출</p></div><button class="textBtn" data-do="assetItem" data-section="properties">＋ 추가</button></header><div class="panelBody">${assetRows("properties")}</div></article></section>`;
 }
 
 function growthView() {
