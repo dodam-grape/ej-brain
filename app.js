@@ -226,31 +226,34 @@ function taskRows(items, limit = 99, sourceKind = "tasks") {
 }
 function eventRows(items, limit = 99) {
   if (!items.length) return empty("◷", "등록된 일정이 없어요.");
-  return `<div class="rows">${[...items].sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`)).slice(0, limit).map(item => {
+  return `<div class="rows">${[...items].sort((a, b) => `${a.date}${a.time || ""}`.localeCompare(`${b.date}${b.time || ""}`)).slice(0, limit).map(item => {
     const d = new Date(`${item.date}T12:00:00`);
     return `<article class="row"><span class="date"><span><b>${d.getDate()}</b><small>${d.getMonth() + 1}월</small></span></span>
-      <div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.time || "시간 미정"}${item.memo ? ` · ${esc(item.memo)}` : ""}</small></div>
-      ${item.category === "work" ? tag(`work-${item.workType}`, WORK_TYPES.find(x => x[0] === item.workType)?.[1] || "보통") : tag(item.category, LABEL[item.category])}
-      ${actionButtons("events", item.id)}
+      <div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.time !== undefined ? (item.time || "시간 미정") : "할 일"}${item.memo ? ` · ${esc(item.memo)}` : ""}</small></div>
+      ${item.category === "work" ? tag(`work-${item.workType || "normal"}`, WORK_TYPES.find(x => x[0] === (item.workType || "normal"))?.[1] || "보통") : tag(item.category, LABEL[item.category])}
+      ${actionButtons(item.time !== undefined ? "events" : "tasks", item.id)}
     </article>`;
   }).join("")}</div>`;
 }
 
 function homeView() {
-  const open = store.data.tasks.filter(item => !item.done), todayCount = open.filter(item => item.date === iso()).length;
-  const upcomingWorkEvents = store.data.events.filter(item => item.category === "work" && item.date >= iso());
+  const open = store.data.tasks.filter(item => !item.done && item.category !== "work"), todayCount = open.filter(item => item.date === iso()).length;
+  const upcomingWorkItems = [
+    ...store.data.events.filter(item => item.category === "work" && item.date >= iso()),
+    ...store.data.tasks.filter(item => item.category === "work" && !item.done && item.date >= iso())
+  ];
   const cardTotal = store.data.transactions.filter(item => item.date.startsWith(currentMonth()) && item.performanceIncluded).reduce((sum, item) => sum + n(item.amount), 0);
   return `${pageHead(`좋은 아침이에요, ${esc(store.data.profile.name)}님`, "오늘 해야 할 것과 가족의 흐름을 가볍게 정리해요.")}
   <section class="hero"><article class="capture"><p class="kicker">BRAIN INBOX</p><h2>생각나는 대로 적어 주세요.</h2><p>업무·육아·자산·여행·이사 메모를 내용에 맞게 분류해요.</p><form id="captureForm"><input name="text" placeholder="예: 금요일 이삿짐 견적 전화하기" required><button class="primary">Brain에 저장</button></form></article><article class="quote"><b>“</b><p>머릿속에서 꺼내 놓으면,<br>오늘은 조금 더 가벼워져요.</p><small>은정 Brain · 오늘의 한마디</small></article></section>
-  <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 업무일정", `${upcomingWorkEvents.length}개`, "업무달력에서 가져옴", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>업무달력과 분리된 할 일 목록입니다</p></div><button class="textBtn" data-do="task">할 일 추가</button></header><div class="panelBody">${taskRows([...store.data.tasks].sort((a, b) => a.done - b.done || (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>업무달력의 가까운 일정만 보여드려요</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(upcomingWorkEvents, 5)}</div></article></section>`;
+  <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 업무일정", `${upcomingWorkItems.length}개`, "업무달력에서 가져옴", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
+  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>업무달력과 분리된 할 일 목록입니다</p></div><button class="textBtn" data-do="task" data-cat="parenting">할 일 추가</button></header><div class="panelBody">${taskRows([...open].sort((a, b) => (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>기존 자료를 포함한 업무달력의 가까운 일정입니다</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(upcomingWorkItems, 5)}</div></article></section>`;
 }
 
 function workView() {
-  const workEvents = store.data.events.filter(item => item.category === "work");
+  const workItems = [...store.data.events.filter(item => item.category === "work"), ...store.data.tasks.filter(item => item.category === "work")];
   return `${pageHead("업무달력", "BR·DD·중요·보통 일정만 달력에서 관리해요.", `<button class="primary" data-do="event" data-cat="work">＋ 업무 일정</button>`)}
     <div class="calendarLegend">${WORK_TYPES.map(([type, label]) => `<span class="work-${type}">${label}</span>`).join("")}</div>
-    ${calendar(workEvents, { category: "work", title: "업무달력", copy: "일정을 누르면 수정하거나 삭제할 수 있어요" })}`;
+    ${calendar(workItems, { category: "work", title: "업무달력", copy: "기존 업무자료도 복원해 표시하며, 일정을 누르면 수정하거나 삭제할 수 있어요" })}`;
 }
 function calendar(items, options = {}) {
   const category = options.category || "work";
@@ -506,7 +509,7 @@ function taskModal(item = {}, category = "work", presetDate = "") {
     field("date", "마감일", "date", item.date || presetDate || iso()) +
     field("workType", "업무 색상", "select", item.workType || "normal", { items: WORK_TYPES }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
-    { id: item.id }
+    { id: item.id, deleteKind: "tasks" }
   ));
 }
 function eventModal(item = {}, category = "work", presetDate = "") {
