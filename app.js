@@ -3,13 +3,24 @@ import { firebaseConfig } from "./firebase-config.js";
 const NAV = [
   ["home", "홈", "⌂"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
   ["parenting", "도담·소담", "♧"], ["assets", "자산", "₩"], ["travel", "여행", "✈"],
-  ["move", "부동산·이사", "⌂"], ["growth", "자기계발", "✦"], ["goals", "목표관리", "◎"]
+  ["move", "부동산·이사", "⌂"]
 ];
 const LABEL = Object.fromEntries(NAV.map(([key, label]) => [key, label]));
 const WORK_TYPES = [["br", "BR"], ["dd", "DD"], ["important", "중요"], ["normal", "보통"]];
 const PLAN_ROWS = [["work", "업무"], ["family", "가족"], ["dodam", "도담"], ["sodam", "소담"], ["assets", "자산"]];
 const TRANSACTION_CATEGORIES = ["식비", "외식·배달", "생활비", "생활용품", "교육", "주거", "보험", "교통", "의료", "여행", "쇼핑", "기타", "급여"];
 const BUDGET_CATEGORIES = TRANSACTION_CATEGORIES.filter(category => category !== "급여");
+const FIXED_HOLIDAYS = {
+  "01-01": "신정", "03-01": "삼일절", "05-05": "어린이날", "06-06": "현충일",
+  "08-15": "광복절", "10-03": "개천절", "10-09": "한글날", "12-25": "성탄절"
+};
+const KOREAN_HOLIDAYS = {
+  "2026-02-16": "설날 연휴", "2026-02-17": "설날", "2026-02-18": "설날 연휴",
+  "2026-03-02": "삼일절 대체공휴일", "2026-05-24": "부처님오신날", "2026-05-25": "대체공휴일",
+  "2026-06-03": "전국동시지방선거", "2026-08-17": "광복절 대체공휴일",
+  "2026-09-24": "추석 연휴", "2026-09-25": "추석", "2026-09-26": "추석 연휴",
+  "2026-10-05": "개천절 대체공휴일"
+};
 const ASSET_SECTIONS = {
   accounts: "현금·예금", loans: "대출현황", insurances: "보험현황", stocks: "주식현황",
   otherAssets: "기타현황", installments: "할부현황", properties: "부동산현황"
@@ -20,6 +31,7 @@ const makeId = () => `${Date.now().toString(36)}-${Math.random().toString(36).sl
 const localDateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const localMonthKey = date => localDateKey(date).slice(0, 7);
 const shiftMonth = (monthKey, offset) => { const [year, month] = monthKey.split("-").map(Number); return localMonthKey(new Date(year, month - 1 + offset, 1)); };
+const holidayName = dateKey => KOREAN_HOLIDAYS[dateKey] || FIXED_HOLIDAYS[dateKey.slice(5)] || "";
 const iso = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return localDateKey(d); };
 const esc = (value = "") => String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
 const won = value => `${Math.abs(Number(value || 0)).toLocaleString("ko-KR")}원`;
@@ -183,7 +195,7 @@ class Store {
 }
 
 const store = new Store();
-let workTab = "plan", assetTab = "dashboard", childTab = "overview", travelTab = "plan";
+let assetTab = "dashboard", childTab = "overview", travelTab = "plan";
 let calendarCursor = new Date(), ledgerMonth = currentMonth(), annualYear = currentYear, toastTimer;
 const route = () => { const value = location.hash.replace(/^#\//, "").split("/")[0] || "home"; return NAV.some(item => item[0] === value) ? value : "home"; };
 
@@ -208,7 +220,7 @@ function taskRows(items, limit = 99, sourceKind = "tasks") {
   return `<div class="tasks">${items.slice(0, limit).map(item => `<article class="task">
     <button class="check ${item.done ? "on" : ""}" data-do="toggle" data-kind="${sourceKind}" data-id="${item.id}">${item.done ? "✓" : ""}</button>
     <div><h3 class="${item.done ? "done" : ""}">${esc(item.title)}</h3><small>${displayDate(item.date || item.due)}${item.memo ? ` · ${esc(item.memo)}` : ""}</small></div>
-    ${item.category === "work" ? tag(`work-${item.workType || "normal"}`, WORK_TYPES.find(x => x[0] === (item.workType || "normal"))?.[1] || "보통") : tag(item.category || "move", LABEL[item.category] || item.group || "항목")}
+    ${item.category === "work" ? tag(`work-${item.workType || "normal"}`, WORK_TYPES.find(x => x[0] === (item.workType || "normal"))?.[1] || "보통") : tag(item.category || "move", item.group || LABEL[item.category] || "항목")}
     ${actionButtons(sourceKind, item.id)}
   </article>`).join("")}</div>`;
 }
@@ -226,31 +238,31 @@ function eventRows(items, limit = 99) {
 
 function homeView() {
   const open = store.data.tasks.filter(item => !item.done), todayCount = open.filter(item => item.date === iso()).length;
+  const upcomingWorkEvents = store.data.events.filter(item => item.category === "work" && item.date >= iso());
   const cardTotal = store.data.transactions.filter(item => item.date.startsWith(currentMonth()) && item.performanceIncluded).reduce((sum, item) => sum + n(item.amount), 0);
   return `${pageHead(`좋은 아침이에요, ${esc(store.data.profile.name)}님`, "오늘 해야 할 것과 가족의 흐름을 가볍게 정리해요.")}
   <section class="hero"><article class="capture"><p class="kicker">BRAIN INBOX</p><h2>생각나는 대로 적어 주세요.</h2><p>업무·육아·자산·여행·이사 메모를 내용에 맞게 분류해요.</p><form id="captureForm"><input name="text" placeholder="예: 금요일 이삿짐 견적 전화하기" required><button class="primary">Brain에 저장</button></form></article><article class="quote"><b>“</b><p>머릿속에서 꺼내 놓으면,<br>오늘은 조금 더 가벼워져요.</p><small>은정 Brain · 오늘의 한마디</small></article></section>
-  <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 일정", `${store.data.events.filter(e => e.date >= iso()).length}개`, "가족·업무 일정", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>수정·삭제 후 자동 동기화됩니다</p></div><button class="textBtn" data-do="task">할 일 추가</button></header><div class="panelBody">${taskRows([...store.data.tasks].sort((a, b) => a.done - b.done || (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>가까운 일정부터 보여드려요</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(store.data.events.filter(e => e.date >= iso()), 5)}</div></article></section>`;
+  <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 업무일정", `${upcomingWorkEvents.length}개`, "업무달력에서 가져옴", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
+  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>업무달력과 분리된 할 일 목록입니다</p></div><button class="textBtn" data-do="task">할 일 추가</button></header><div class="panelBody">${taskRows([...store.data.tasks].sort((a, b) => a.done - b.done || (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>업무달력의 가까운 일정만 보여드려요</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(upcomingWorkEvents, 5)}</div></article></section>`;
 }
 
 function workView() {
-  const workTasks = store.data.tasks.filter(item => item.category === "work"), workEvents = store.data.events.filter(item => item.category === "work");
-  const body = workTab === "plan"
-    ? `<section class="grid2"><article class="panel"><header class="panelHead"><div><h2>업무계획</h2><p>BR·DD·중요·보통으로 구분해요</p></div><button class="primary" data-do="task" data-cat="work">＋ 업무</button></header><div class="panelBody">${taskRows(workTasks)}</div></article><article class="panel"><header class="panelHead"><div><h2>업무 일정</h2><p>달력에 표시될 일정</p></div><button class="primary" data-do="event" data-cat="work">＋ 일정</button></header><div class="panelBody">${eventRows(workEvents, 8)}</div></article></section>`
-    : calendar([...workTasks, ...workEvents]);
-  return `${pageHead("업무", "업무계획과 색상 달력에 집중해서 관리해요.", `<button class="secondary" data-do="event" data-cat="work">＋ 일정</button><button class="primary" data-do="task" data-cat="work">＋ 업무</button>`)}
+  const workEvents = store.data.events.filter(item => item.category === "work");
+  return `${pageHead("업무달력", "BR·DD·중요·보통 일정만 달력에서 관리해요.", `<button class="primary" data-do="event" data-cat="work">＋ 업무 일정</button>`)}
     <div class="calendarLegend">${WORK_TYPES.map(([type, label]) => `<span class="work-${type}">${label}</span>`).join("")}</div>
-    <div class="tabs">${[["plan", "업무계획"], ["calendar", "업무달력"]].map(([key, label]) => `<button class="${workTab === key ? "on" : ""}" data-do="workTab" data-tab="${key}">${label}</button>`).join("")}</div>${body}`;
+    ${calendar(workEvents, { category: "work", title: "업무달력", copy: "일정을 누르면 수정하거나 삭제할 수 있어요" })}`;
 }
-function calendar(items) {
+function calendar(items, options = {}) {
+  const category = options.category || "work";
   const year = calendarCursor.getFullYear(), month = calendarCursor.getMonth(), first = new Date(year, month, 1), start = new Date(year, month, 1 - first.getDay());
   const days = Array.from({ length: 42 }, (_, index) => {
     const day = new Date(start); day.setDate(start.getDate() + index); const dateKey = localDateKey(day);
-    const dayItems = items.filter(item => (item.date || item.due) === dateKey);
-    return `<div class="day ${day.getMonth() !== month ? "out" : ""} ${dateKey === iso() ? "today" : ""}"><button class="num" data-do="addOnDate" data-date="${dateKey}">${day.getDate()}</button>
-      ${dayItems.slice(0, 5).map(item => `<button class="calItem work-${item.workType || "normal"}" data-do="edit" data-kind="${item.time !== undefined ? "events" : "tasks"}" data-id="${item.id}">${esc(item.title)}</button>`).join("")}</div>`;
+    const holiday = holidayName(dateKey), weekday = day.getDay(), dayItems = items.filter(item => (item.date || item.due) === dateKey);
+    const dateTone = holiday || weekday === 0 ? "holiday" : weekday === 6 ? "saturday" : "";
+    return `<div class="day ${day.getMonth() !== month ? "out" : ""} ${dateKey === iso() ? "today" : ""} ${dateTone}"><div class="dayHead"><button class="num" data-do="addOnDate" data-cat="${category}" data-date="${dateKey}">${day.getDate()}</button>${holiday ? `<small>${esc(holiday)}</small>` : ""}</div>
+      ${dayItems.slice(0, 5).map(item => `<button class="calItem ${category === "work" ? `work-${item.workType || "normal"}` : "child-event"}" data-do="edit" data-kind="${item.time !== undefined ? "events" : "tasks"}" data-id="${item.id}">${esc(item.title)}</button>`).join("")}</div>`;
   }).join("");
-  return `<article class="panel"><header class="panelHead"><div><h2>${year}년 ${month + 1}월</h2><p>날짜나 일정을 누르면 바로 입력·수정할 수 있어요</p></div><div class="rowActions"><button data-do="calendarPrev">‹ 이전</button><button data-do="calendarToday">오늘</button><button data-do="calendarNext">다음 ›</button></div></header><div class="panelBody calendarWrap"><div class="calendar"><div class="week">${["일", "월", "화", "수", "목", "금", "토"].map(x => `<span>${x}</span>`).join("")}</div><div class="days">${days}</div></div></div></article>`;
+  return `<article class="panel"><header class="panelHead"><div><h2>${options.title || `${year}년 ${month + 1}월`}</h2><p>${year}년 ${month + 1}월 · ${options.copy || "날짜를 누르면 일정을 추가할 수 있어요"}</p></div><div class="rowActions"><button data-do="calendarPrev">‹ 이전</button><button data-do="calendarToday">오늘</button><button data-do="calendarNext">다음 ›</button></div></header><div class="panelBody calendarWrap"><div class="calendar"><div class="week">${["일", "월", "화", "수", "목", "금", "토"].map((x, index) => `<span class="${index === 0 ? "holiday" : index === 6 ? "saturday" : ""}">${x}</span>`).join("")}</div><div class="days">${days}</div></div></div></article>`;
 }
 
 function annualView() {
@@ -267,10 +279,11 @@ function annualView() {
 function parentingView() {
   const buttons = [["overview", "전체"], ["dodam", "도담"], ["sodam", "소담"]].map(([key, label]) => `<button class="${childTab === key ? "on" : ""}" data-do="childTab" data-tab="${key}">${label}</button>`).join("");
   const content = childTab === "overview" ? childOverview() : childDetail(childTab);
-  return `${pageHead("도담·소담", "각각 매일 루틴시간표·연간로드맵·성장로드맵으로 관리해요.")}<div class="tabs">${buttons}</div>${content}`;
+  return `${pageHead("도담·소담", "아이 일정 달력과 각각의 루틴·연간·성장 로드맵을 함께 관리해요.")}<div class="tabs">${buttons}</div>${content}`;
 }
 function childOverview() {
-  return `<section class="people"><article class="person dodam"><span class="avatar">📚</span><h3>도담</h3><p>초등 1학년<br>독서 · 사고력수학 · 영어 · 줄넘기</p><button class="primary space" data-do="openChild" data-child="dodam">도담 관리</button></article><article class="person sodam"><span class="avatar">🌼</span><h3>소담</h3><p>5세<br>그림책 · 놀이수학 · 한글 · 신체활동</p><button class="primary space" data-do="openChild" data-child="sodam">소담 관리</button></article><article class="person"><span class="avatar">🗓</span><h3>가족 일정</h3><p>학교·유치원·학원·체험학습 일정을 모아요.</p><button class="primary space" data-do="event" data-cat="parenting">일정 추가</button></article></section><article class="panel space"><header class="panelHead"><div><h2>다가오는 아이 일정</h2><p>도담·소담 일정 모아보기</p></div></header><div class="panelBody">${eventRows(store.data.events.filter(e => e.category === "parenting"))}</div></article>`;
+  const childItems = [...store.data.events.filter(item => item.category === "parenting"), ...store.data.tasks.filter(item => item.category === "parenting")];
+  return `<section class="people"><article class="person dodam"><span class="avatar">📚</span><h3>도담</h3><p>초등 1학년<br>독서 · 사고력수학 · 영어 · 줄넘기</p><button class="primary space" data-do="openChild" data-child="dodam">도담 관리</button></article><article class="person sodam"><span class="avatar">🌼</span><h3>소담</h3><p>5세<br>그림책 · 놀이수학 · 한글 · 신체활동</p><button class="primary space" data-do="openChild" data-child="sodam">소담 관리</button></article><article class="person"><span class="avatar">🗓</span><h3>아이 일정</h3><p>학교·유치원·학원·체험학습 일정을 모아요.</p><button class="primary space" data-do="event" data-cat="parenting">아이 일정 추가</button></article></section><div class="space">${calendar(childItems, { category: "parenting", title: "도담·소담 달력", copy: "홈에서 도담·소담으로 등록한 할 일도 함께 표시됩니다" })}</div>`;
 }
 function childDetail(child) {
   const name = child === "dodam" ? "도담" : "소담", data = store.data.childData[child];
@@ -439,7 +452,7 @@ function progressCards(items, kind) {
 
 function render() {
   $("#sideNav").innerHTML = nav(false); $("#bottomNav").innerHTML = nav(true);
-  $("#app").innerHTML = ({ home: homeView, work: workView, annual: annualView, parenting: parentingView, assets: assetsView, travel: travelView, move: moveView, growth: growthView, goals: goalsView }[route()] || homeView)();
+  $("#app").innerHTML = ({ home: homeView, work: workView, annual: annualView, parenting: parentingView, assets: assetsView, travel: travelView, move: moveView }[route()] || homeView)();
   syncUI(); window.scrollTo(0, 0);
 }
 
@@ -449,8 +462,6 @@ function infer(text) {
   else if (/여행|숙소|항공|호텔|박물관/.test(value)) category = "travel";
   else if (/원|결제|카드|보험|대출|예금|주식|가계부/.test(value)) category = "assets";
   else if (/이사|수리|샤시|도배|장판|전세|재건축|가구/.test(value)) category = "move";
-  else if (/공부|강의|배우|코딩|프롬프트/.test(value)) category = "growth";
-  else if (/목표|버킷/.test(value)) category = "goals";
   return { category, date: /모레/.test(value) ? iso(2) : /내일/.test(value) ? iso(1) : iso() };
 }
 function capture(text) {
@@ -506,7 +517,7 @@ function eventModal(item = {}, category = "work", presetDate = "") {
     field("time", "시간", "time", item.time || "09:00") +
     field("workType", "업무 색상", "select", item.workType || "normal", { items: WORK_TYPES }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
-    { id: item.id }
+    { id: item.id, deleteKind: "events" }
   ));
 }
 function transactionModal(item = {}) {
@@ -681,8 +692,7 @@ document.addEventListener("click", async event => {
     if (button.dataset.close === "yes") closeModal();
     render();
   }
-  if (action === "addOnDate") eventModal({}, "work", button.dataset.date);
-  if (action === "workTab") { workTab = button.dataset.tab; render(); }
+  if (action === "addOnDate") eventModal({}, button.dataset.cat || "work", button.dataset.date);
   if (action === "assetTab") { assetTab = button.dataset.tab; render(); }
   if (action === "assetSection") { assetTab = "manage"; render(); setTimeout(() => document.querySelector(`[data-section="${button.dataset.section}"]`)?.scrollIntoView({ behavior: "smooth" }), 50); }
   if (action === "childTab") { childTab = button.dataset.tab; render(); }
