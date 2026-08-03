@@ -200,10 +200,8 @@ let calendarCursor = new Date(), ledgerMonth = currentMonth(), annualYear = curr
 const route = () => { const value = location.hash.replace(/^#\//, "").split("/")[0] || "home"; return NAV.some(item => item[0] === value) ? value : "home"; };
 
 function nav(mobile = false) {
-  const items = mobile ? [["home", "홈", "⌂"], ["work", "업무", "✓"], ["quick", "수집함", "＋"], ["assets", "자산", "₩"], ["annual", "연간", "▦"]] : NAV;
-  return items.map(([key, label, icon]) => key === "quick"
-    ? `<a href="#" data-do="quick"><em>${icon}</em>${label}</a>`
-    : `<a class="${mobile ? "" : "nav"} ${route() === key ? "active" : ""}" href="#/${key}"><em>${icon}</em>${label}</a>`).join("");
+  const items = mobile ? [["home", "홈", "⌂"], ["work", "업무", "✓"], ["parenting", "도담소담", "♧"], ["assets", "자산", "₩"], ["annual", "연간", "▦"]] : NAV;
+  return items.map(([key, label, icon]) => `<a class="${mobile ? "" : "nav"} ${route() === key ? "active" : ""}" href="#/${key}"><em>${icon}</em>${label}</a>`).join("");
 }
 function pageHead(title, copy, actions = "") {
   return `<header class="pageHead"><div><small>EUNJEONG BRAIN</small><h1>${title}</h1><p>${copy}</p></div><div class="actions">${actions}<button class="saveBtn" data-do="saveAll">저장</button></div></header>`;
@@ -612,6 +610,12 @@ function syncModal() {
   const configured = !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId), online = !!store.user;
   modal("PC·모바일 동기화", `<div class="syncInfo"><h3>${online ? "✓ Google 계정으로 연결됨" : configured ? "동기화 준비 완료" : "이 기기에 저장 중"}</h3><p>${online ? `${esc(store.user.email || "로그인 계정")} 데이터가 자동 동기화됩니다.` : "같은 Google 계정으로 로그인하면 모든 기기에서 같은 데이터가 보입니다."}</p></div><div class="buttons">${online ? `<button class="danger" data-do="signOut">로그아웃</button>` : configured ? `<button class="primary" data-do="signIn">Google로 연결하기</button>` : ""}<button class="ghost" data-do="close">닫기</button></div>`);
 }
+function mobileMenuModal() {
+  modal("전체메뉴", `<div class="mobileMenuGrid">
+    <button data-do="mobileRoute" data-route="travel"><span>✈</span><strong>여행</strong><small>여행 계획과 기록</small></button>
+    <button data-do="mobileRoute" data-route="move"><span>⌂</span><strong>부동산·이사</strong><small>수리·구매·처분 계획</small></button>
+  </div><p class="help space">자주 사용하는 홈·업무·도담소담·자산·연간은 화면 아래 탭에서 바로 이동할 수 있어요.</p>`);
+}
 function syncUI() {
   const online = !!store.user; $("#syncDot")?.classList.toggle("on", online);
   if ($("#syncTitle")) $("#syncTitle").textContent = online ? "PC·모바일 동기화 중" : "이 기기에 저장 중";
@@ -660,6 +664,8 @@ document.addEventListener("click", async event => {
   if (action === "close") closeModal();
   if (action === "saveAll") store.save("전체 내용을 저장·동기화했어요.");
   if (action === "quick") { event.preventDefault(); quickModal(); }
+  if (action === "mobileMenu") mobileMenuModal();
+  if (action === "mobileRoute") { location.hash = `#/${button.dataset.route}`; closeModal(); }
   if (action === "task") taskModal({}, button.dataset.cat || "work");
   if (action === "event") eventModal({}, button.dataset.cat || "work");
   if (action === "transaction") transactionModal();
