@@ -8,6 +8,8 @@ const NAV = [
 const LABEL = Object.fromEntries(NAV.map(([key, label]) => [key, label]));
 const WORK_TYPES = [["br", "BR"], ["dd", "DD"], ["important", "중요"], ["normal", "보통"]];
 const PLAN_ROWS = [["work", "업무"], ["family", "가족"], ["dodam", "도담"], ["sodam", "소담"], ["assets", "자산"]];
+const TRANSACTION_CATEGORIES = ["식비", "외식·배달", "생활비", "생활용품", "교육", "주거", "보험", "교통", "의료", "여행", "쇼핑", "기타", "급여"];
+const BUDGET_CATEGORIES = TRANSACTION_CATEGORIES.filter(category => category !== "급여");
 const ASSET_SECTIONS = {
   accounts: "현금·예금", loans: "대출현황", insurances: "보험현황", stocks: "주식현황",
   otherAssets: "기타현황", installments: "할부현황", properties: "부동산현황"
@@ -15,14 +17,18 @@ const ASSET_SECTIONS = {
 const $ = (selector, root = document) => root.querySelector(selector);
 const KEY = "eunjeong-brain-v1";
 const makeId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
-const iso = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
+const localDateKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const localMonthKey = date => localDateKey(date).slice(0, 7);
+const shiftMonth = (monthKey, offset) => { const [year, month] = monthKey.split("-").map(Number); return localMonthKey(new Date(year, month - 1 + offset, 1)); };
+const iso = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return localDateKey(d); };
 const esc = (value = "") => String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
 const won = value => `${Math.abs(Number(value || 0)).toLocaleString("ko-KR")}원`;
+const signedWon = value => `${n(value) < 0 ? "−" : ""}${won(value)}`;
 const pct = value => `${Number(value || 0).toFixed(2).replace(/\.00$/, "")}%`;
 const displayDate = value => value ? new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric", weekday: "short" }).format(new Date(`${value}T12:00:00`)) : "날짜 없음";
 const n = value => Number(String(value ?? 0).replace(/,/g, "")) || 0;
 const currentYear = new Date().getFullYear();
-const currentMonth = () => new Date().toISOString().slice(0, 7);
+const currentMonth = () => localMonthKey(new Date());
 
 function seed() {
   return {
@@ -49,6 +55,7 @@ function seed() {
       { id: makeId(), name: "삼성카드", target: 0 }
     ],
     transactions: [],
+    budgets: [],
     loans: [],
     insurances: [],
     stocks: [],
@@ -94,12 +101,12 @@ function seed() {
 function normalize(raw = {}) {
   const base = seed();
   const data = { ...base, ...raw, version: 2 };
-  const arrays = ["tasks", "events", "inbox", "accounts", "cards", "transactions", "loans", "insurances", "stocks", "otherAssets", "installments", "properties", "annualPlans", "trips", "moveItems", "growth", "goals"];
+  const arrays = ["tasks", "events", "inbox", "accounts", "cards", "transactions", "budgets", "loans", "insurances", "stocks", "otherAssets", "installments", "properties", "annualPlans", "trips", "moveItems", "growth", "goals"];
   arrays.forEach(key => { data[key] = Array.isArray(raw[key]) ? raw[key] : base[key]; });
   if (!data.cards.length) data.cards = base.cards;
   data.tasks = data.tasks.map(item => ({ workType: item.priority === "high" ? "important" : "normal", memo: "", ...item }));
   data.events = data.events.map(item => ({ workType: "normal", memo: "", ...item }));
-  data.transactions = data.transactions.map(item => ({ card: "현금/계좌", performanceIncluded: false, memo: "", ...item }));
+  data.transactions = data.transactions.map(item => ({ card: "현금/계좌", performanceIncluded: false, expenseType: "variable", memo: "", ...item }));
   data.moveItems = data.moveItems.map(item => ({ due: "2027-03-06", cost: 0, memo: "", ...item }));
   const legacyDebts = data.accounts.filter(item => item.type === "debt");
   data.accounts = data.accounts.filter(item => item.type !== "debt");
@@ -126,17 +133,21 @@ function normalize(raw = {}) {
 class Store {
   constructor() {
     try { this.data = normalize(JSON.parse(localStorage.getItem(KEY)) || {}); } catch { this.data = seed(); }
-    this.user = null; this.fb = null; this.timer = null; this.unsubscribe = null;
+    this.user = null; this.fb = null; this.unsubscribe = null; this.pendingWrites = 0; this.writeQueue = Promise.resolve();
   }
   local() { localStorage.setItem(KEY, JSON.stringify(this.data)); }
   save(message = "") {
     this.local();
     if (this.user && this.fb) {
-      clearTimeout(this.timer);
-      this.timer = setTimeout(async () => {
+      const state = JSON.parse(JSON.stringify(this.data));
+      const uid = this.user.uid;
+      this.pendingWrites++;
+      this.writeQueue = this.writeQueue.then(async () => {
         const { fire, db } = this.fb;
-        await fire.setDoc(fire.doc(db, "brains", this.user.uid), { state: this.data, updatedAt: fire.serverTimestamp() }, { merge: true });
-      }, 250);
+        await fire.setDoc(fire.doc(db, "brains", uid), { state, updatedAt: fire.serverTimestamp() }, { merge: true });
+      }).catch(error => {
+        console.warn(error); toast("동기화 중 오류가 생겼어요. 다시 저장해 주세요.");
+      }).finally(() => { this.pendingWrites = Math.max(0, this.pendingWrites - 1); });
     }
     if (message) toast(message);
   }
@@ -160,7 +171,7 @@ class Store {
           else await fire.setDoc(ref, { state: this.data, updatedAt: fire.serverTimestamp() });
           this.local();
           this.unsubscribe = fire.onSnapshot(ref, next => {
-            if (next.exists()) { this.data = normalize(next.data().state); this.local(); render(); }
+            if (next.exists() && this.pendingWrites === 0) { this.data = normalize(next.data().state); this.local(); render(); }
           });
         }
         render(); syncUI();
@@ -219,7 +230,7 @@ function homeView() {
   return `${pageHead(`좋은 아침이에요, ${esc(store.data.profile.name)}님`, "오늘 해야 할 것과 가족의 흐름을 가볍게 정리해요.")}
   <section class="hero"><article class="capture"><p class="kicker">BRAIN INBOX</p><h2>생각나는 대로 적어 주세요.</h2><p>업무·육아·자산·여행·이사 메모를 내용에 맞게 분류해요.</p><form id="captureForm"><input name="text" placeholder="예: 금요일 이삿짐 견적 전화하기" required><button class="primary">Brain에 저장</button></form></article><article class="quote"><b>“</b><p>머릿속에서 꺼내 놓으면,<br>오늘은 조금 더 가벼워져요.</p><small>은정 Brain · 오늘의 한마디</small></article></section>
   <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 일정", `${store.data.events.filter(e => e.date >= iso()).length}개`, "가족·업무 일정", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>수정·삭제 후 자동 동기화됩니다</p></div><button class="textBtn" data-do="task">할 일 추가</button></header><div class="panelBody">${taskRows([...store.data.tasks].sort((a, b) => a.done - b.done || (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>가까운 일정부터 보여드려요</p></div><button class="textBtn" data-do="event">일정 추가</button></header><div class="panelBody">${eventRows(store.data.events.filter(e => e.date >= iso()), 5)}</div></article></section>`;
+  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>수정·삭제 후 자동 동기화됩니다</p></div><button class="textBtn" data-do="task">할 일 추가</button></header><div class="panelBody">${taskRows([...store.data.tasks].sort((a, b) => a.done - b.done || (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>가까운 일정부터 보여드려요</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(store.data.events.filter(e => e.date >= iso()), 5)}</div></article></section>`;
 }
 
 function workView() {
@@ -234,7 +245,7 @@ function workView() {
 function calendar(items) {
   const year = calendarCursor.getFullYear(), month = calendarCursor.getMonth(), first = new Date(year, month, 1), start = new Date(year, month, 1 - first.getDay());
   const days = Array.from({ length: 42 }, (_, index) => {
-    const day = new Date(start); day.setDate(start.getDate() + index); const dateKey = day.toISOString().slice(0, 10);
+    const day = new Date(start); day.setDate(start.getDate() + index); const dateKey = localDateKey(day);
     const dayItems = items.filter(item => (item.date || item.due) === dateKey);
     return `<div class="day ${day.getMonth() !== month ? "out" : ""} ${dateKey === iso() ? "today" : ""}"><button class="num" data-do="addOnDate" data-date="${dateKey}">${day.getDate()}</button>
       ${dayItems.slice(0, 5).map(item => `<button class="calItem work-${item.workType || "normal"}" data-do="edit" data-kind="${item.time !== undefined ? "events" : "tasks"}" data-id="${item.id}">${esc(item.title)}</button>`).join("")}</div>`;
@@ -249,7 +260,7 @@ function annualView() {
     <div class="annualWrap"><table class="annualTable"><thead><tr><th>구분</th>${Array.from({ length: 12 }, (_, i) => `<th>${i + 1}월</th>`).join("")}</tr></thead><tbody>
     ${PLAN_ROWS.map(([row, label]) => `<tr><th>${label}</th>${Array.from({ length: 12 }, (_, i) => {
       const monthPlans = plans.filter(item => item.row === row && n(item.month) === i + 1);
-      return `<td><button class="cellAdd" data-do="annualCell" data-row="${row}" data-month="${i + 1}">＋</button>${monthPlans.map(item => `<article class="planChip row-${row}"><strong>${esc(item.title)}</strong>${item.memo ? `<small>${esc(item.memo)}</small>` : ""}${actionButtons("annualPlans", item.id)}</article>`).join("")}</td>`;
+      return `<td><button class="cellAdd" data-do="annualCell" data-row="${row}" data-month="${i + 1}">＋</button>${monthPlans.map(item => `<button type="button" class="planChip row-${row}" data-do="edit" data-kind="annualPlans" data-id="${item.id}" aria-label="${esc(item.title)} 수정하기"><strong>${esc(item.title)}</strong>${item.memo ? `<small>${esc(item.memo)}</small>` : ""}</button>`).join("")}</td>`;
     }).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
@@ -296,7 +307,7 @@ function assetsView() {
 }
 function assetDashboard() {
   const s = assetSummary();
-  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${won(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출·할부</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${won(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 월별 가계 흐름</h3><p>수입 ${won(s.income)} · 지출 ${won(s.expense)}<br>이번 달 가계 잔액은 ${won(s.income - s.expense)}입니다.</p></article></section>
+  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출·할부</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 월별 가계 흐름</h3><p>수입 ${won(s.income)} · 지출 ${won(s.expense)}<br>이번 달 가계 잔액은 ${signedWon(s.income - s.expense)}입니다.</p></article></section>
   <section class="stats">${stat("현금·예금", won(s.liquid), "입력계좌 합계", "₩")}${stat("주식", won(s.stocks), "현재가 기준", "↗")}${stat("부동산", won(s.property), "현재시세 기준", "⌂")}${stat("부채", won(s.debt), "대출+할부 잔액", "−")}</section>
   ${cardPerformance(true)}
   <section class="grid2 space"><article class="panel"><header class="panelHead"><div><h2>최근 가계부</h2><p>수입·지출·카드실적 반영</p></div><button class="textBtn" data-do="transaction">＋ 내역</button></header><div class="panelBody">${transactionRows([...store.data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6))}</div></article><article class="panel"><header class="panelHead"><div><h2>자산관리 요약</h2><p>상세현황 항목 수</p></div></header><div class="panelBody assetCounts">${Object.entries(ASSET_SECTIONS).map(([key, label]) => `<button data-do="assetSection" data-section="${key}"><b>${store.data[key].length}</b><span>${label}</span></button>`).join("")}</div></article></section>`;
@@ -309,15 +320,61 @@ function cardPerformance(compact = false) {
     return `<article class="cardPerformance"><header><div><small>${ledgerMonth}</small><h3>${esc(card.name)}</h3></div>${actionButtons("cards", card.id)}</header><strong>${won(used)}</strong><p>${target ? remain ? `실적까지 ${won(remain)} 더 필요` : "목표 실적 달성!" : "목표실적을 입력해 주세요"}</p><div class="progress"><i style="width:${rate}%"></i></div><small>${target ? `${won(used)} / ${won(target)}` : "목표 없음"}</small></article>`;
   }).join("")}</section>`;
 }
+function monthTotals(monthKey) {
+  const items = store.data.transactions.filter(item => item.date.startsWith(monthKey));
+  const income = items.filter(item => item.kind === "income").reduce((sum, item) => sum + n(item.amount), 0);
+  const expenses = items.filter(item => item.kind === "expense");
+  const expense = expenses.reduce((sum, item) => sum + n(item.amount), 0);
+  const fixed = expenses.filter(item => item.expenseType === "fixed").reduce((sum, item) => sum + n(item.amount), 0);
+  return { items, income, expense, fixed, variable: expense - fixed, net: income - expense };
+}
+function budgetSection(monthItems) {
+  const budgets = store.data.budgets.filter(item => item.month === ledgerMonth).sort((a, b) => a.category.localeCompare(b.category, "ko"));
+  const totalBudget = budgets.reduce((sum, item) => sum + n(item.amount), 0);
+  const budgetedCategories = new Set(budgets.map(item => item.category));
+  const budgetSpend = monthItems.filter(item => item.kind === "expense" && budgetedCategories.has(item.category)).reduce((sum, item) => sum + n(item.amount), 0);
+  const remaining = totalBudget - budgetSpend;
+  const cards = budgets.length ? `<div class="budgetGrid">${budgets.map(item => {
+    const spent = monthItems.filter(tx => tx.kind === "expense" && tx.category === item.category).reduce((sum, tx) => sum + n(tx.amount), 0);
+    const amount = n(item.amount), rate = amount ? spent / amount * 100 : 0, width = Math.min(rate, 100);
+    const tone = rate > 100 ? "over" : rate >= 90 ? "danger" : rate >= 70 ? "warn" : "safe";
+    return `<article class="budgetCard ${tone}"><header><div><small>${esc(item.category)}</small><strong>${Math.round(rate)}%</strong></div>${actionButtons("budgets", item.id)}</header><div class="budgetAmounts"><b>${won(spent)}</b><span>/ ${won(amount)}</span></div><div class="progress"><i style="width:${width}%"></i></div><p>${spent > amount ? `${won(spent - amount)} 초과` : `${won(amount - spent)} 남음`}</p></article>`;
+  }).join("")}</div>` : empty("₩", "이번 달 카테고리별 예산을 먼저 설정해 보세요.");
+  return `<article class="panel budgetPanel"><header class="panelHead"><div><h2>카테고리별 월 예산</h2><p>예산 대비 실제 지출을 색상으로 확인해요</p></div><div class="rowActions"><button data-do="copyBudgets">전월 예산 가져오기</button><button data-do="budgetItem">＋ 예산</button></div></header><div class="panelBody"><div class="budgetSummary"><div><small>총예산</small><b>${won(totalBudget)}</b></div><div><small>예산항목 지출</small><b>${won(budgetSpend)}</b></div><div class="${remaining < 0 ? "negative" : ""}"><small>${remaining < 0 ? "초과금액" : "남은 예산"}</small><b>${won(remaining)}</b></div></div>${cards}</div></article>`;
+}
+function comparisonValue(label, current, previous, goodWhenUp = false) {
+  const diff = current - previous, rate = previous ? Math.abs(diff) / previous * 100 : null;
+  const direction = diff === 0 ? "same" : (diff > 0) === goodWhenUp ? "good" : "bad";
+  const copy = diff === 0 ? "전월과 동일" : `${diff > 0 ? "▲" : "▼"} ${won(diff)}${rate == null ? "" : ` · ${rate.toFixed(1)}%`}`;
+  return `<div class="compareValue"><small>${label}</small><b>${signedWon(current)}</b><span class="${direction}">${copy}</span></div>`;
+}
+function monthlyClosing() {
+  const previousMonth = shiftMonth(ledgerMonth, -1), current = monthTotals(ledgerMonth), previous = monthTotals(previousMonth);
+  const categories = [...new Set([...current.items, ...previous.items].filter(item => item.kind === "expense").map(item => item.category))];
+  const changes = categories.map(category => {
+    const now = current.items.filter(item => item.kind === "expense" && item.category === category).reduce((sum, item) => sum + n(item.amount), 0);
+    const before = previous.items.filter(item => item.kind === "expense" && item.category === category).reduce((sum, item) => sum + n(item.amount), 0);
+    return { category, now, before, diff: now - before };
+  }).sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  const changeRows = changes.length ? `<div class="categoryCompare">${changes.map(item => `<div><strong>${esc(item.category)}</strong><span>${won(item.before)} → ${won(item.now)}</span><b class="${item.diff > 0 ? "bad" : item.diff < 0 ? "good" : "same"}">${item.diff === 0 ? "동일" : `${item.diff > 0 ? "+" : "−"}${won(item.diff)}`}</b></div>`).join("")}</div>` : empty("≋", "비교할 지출 내역이 아직 없어요.");
+  const expenseDiff = current.expense - previous.expense;
+  const insight = current.expense === 0 && previous.expense === 0
+    ? "가계부 내역을 입력하면 전월과 자동으로 비교해 드려요."
+    : expenseDiff > 0 ? `이번 달 지출이 전월보다 ${won(expenseDiff)} 늘었어요. 증가한 카테고리를 확인해 보세요.`
+      : expenseDiff < 0 ? `이번 달 지출을 전월보다 ${won(Math.abs(expenseDiff))} 줄였어요.` : "이번 달 지출은 전월과 같아요.";
+  return `<article class="panel closingPanel"><header class="panelHead"><div><h2>월말결산 · 전월 비교</h2><p>${ledgerMonth} 현재 기준 · 비교월 ${previousMonth}</p></div></header><div class="panelBody"><div class="compareGrid">${comparisonValue("수입", current.income, previous.income, true)}${comparisonValue("지출", current.expense, previous.expense, false)}${comparisonValue("잔액", current.net, previous.net, true)}${comparisonValue("변동비", current.variable, previous.variable, false)}</div><div class="closingInsight">✦ ${insight}</div><h3 class="sectionTitle">카테고리별 지출 변화</h3>${changeRows}</div></article>`;
+}
 function ledgerView() {
-  const items = store.data.transactions.filter(item => item.date.startsWith(ledgerMonth)).sort((a, b) => b.date.localeCompare(a.date)), s = assetSummary();
+  const totals = monthTotals(ledgerMonth), items = [...totals.items].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월</strong><button data-do="ledgerNext">›</button></div>
-  <section class="stats">${stat("수입", won(s.income), "월 수입 합계", "+")}${stat("지출", won(s.expense), "월 지출 합계", "−")}${stat("잔액", won(s.income - s.expense), "수입-지출", "₩")}${stat("실적 포함", won(items.filter(x => x.performanceIncluded).reduce((sum, x) => sum + n(x.amount), 0)), "카드 인정금액", "✓")}</section>
-  <article class="panel"><header class="panelHead"><div><h2>${ledgerMonth} 가계부</h2><p>카드와 실적 포함 여부까지 기록합니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(items)}</div></article>`;
+  <section class="stats">${stat("수입", won(totals.income), "월 수입 합계", "+")}${stat("지출", won(totals.expense), "월 지출 합계", "−")}${stat("고정비", won(totals.fixed), "조절하기 어려운 지출", "▣")}${stat("변동비", won(totals.variable), "이번 달 조절 가능한 지출", "↕")}</section>
+  ${budgetSection(items)}
+  <article class="panel space"><header class="panelHead"><div><h2>${ledgerMonth} 가계부</h2><p>고정비·변동비와 카드실적을 함께 기록합니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(items)}</div></article>
+  <div class="space">${monthlyClosing()}</div>`;
 }
 function transactionRows(items) {
   if (!items.length) return empty("₩", "첫 가계부 내역을 입력해 보세요.");
-  return `<div class="rows">${items.map(item => `<article class="row"><i class="ico">${item.kind === "income" ? "+" : "−"}</i><div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.date} · ${esc(item.category)} · ${esc(item.card || "현금/계좌")} ${item.performanceIncluded ? "· 실적포함" : "· 실적미포함"}</small></div><span class="amount ${item.kind}">${item.kind === "income" ? "+" : "−"}${won(item.amount)}</span>${actionButtons("transactions", item.id)}</article>`).join("")}</div>`;
+  return `<div class="rows">${items.map(item => `<article class="row"><i class="ico">${item.kind === "income" ? "+" : "−"}</i><div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.date} · ${esc(item.category)} · ${item.kind === "expense" ? item.expenseType === "fixed" ? "고정비" : "변동비" : "수입"} · ${esc(item.card || "현금/계좌")} ${item.performanceIncluded ? "· 실적포함" : "· 실적미포함"}</small></div><span class="amount ${item.kind}">${item.kind === "income" ? "+" : "−"}${won(item.amount)}</span>${actionButtons("transactions", item.id)}</article>`).join("")}</div>`;
 }
 function cardView() {
   return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월 카드실적</strong><button data-do="ledgerNext">›</button></div>${cardPerformance()}<article class="panel space"><header class="panelHead"><div><h2>실적 포함 사용내역</h2><p>실적미포함은 합계에서 제외됩니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(store.data.transactions.filter(item => item.date.startsWith(ledgerMonth) && item.performanceIncluded))}</div></article>`;
@@ -416,7 +473,10 @@ function field(name, label, type = "text", value = "", options = {}) {
   return `<div class="field ${full}"><label>${label}</label><input name="${name}" type="${type}" value="${esc(value)}" ${options.min != null ? `min="${options.min}"` : ""} ${options.step ? `step="${options.step}"` : ""} ${options.required === false ? "" : "required"}></div>`;
 }
 function form(formId, fields, edit = {}) {
-  return `<form id="${formId}" data-edit-id="${edit.id || ""}" ${edit.extra || ""}><div class="formGrid">${fields}</div><div class="buttons"><button type="button" class="ghost" data-do="close">취소</button><button class="primary">저장</button></div></form>`;
+  const deleteButton = edit.id && edit.deleteKind
+    ? `<button type="button" class="danger modalDelete" data-do="delete" data-kind="${edit.deleteKind}" data-id="${edit.id}" data-close="yes">삭제</button>`
+    : "";
+  return `<form id="${formId}" data-edit-id="${edit.id || ""}" ${edit.extra || ""}><div class="formGrid">${fields}</div><div class="buttons">${deleteButton}<button type="button" class="ghost" data-do="close">취소</button><button class="primary">저장</button></div></form>`;
 }
 function findItem(kind, itemId, child, section) {
   if (kind === "childItem") return store.data.childData[child][section].find(item => item.id === itemId);
@@ -454,12 +514,21 @@ function transactionModal(item = {}) {
   modal(item.id ? "사용내역 수정" : "가계부 사용내역", form("transactionForm",
     field("title", "내용", "text", item.title || "", { full: true }) +
     field("kind", "구분", "select", item.kind || "expense", { items: [["expense", "지출"], ["income", "수입"]] }) +
-    field("category", "분류", "select", item.category || "생활비", { items: ["생활비", "교육", "주거", "보험", "교통", "여행", "급여", "기타"].map(v => [v, v]) }) +
+    field("category", "분류", "select", item.category || "생활비", { items: TRANSACTION_CATEGORIES.map(v => [v, v]) }) +
+    field("expenseType", "지출 유형", "select", item.expenseType || "variable", { items: [["variable", "변동비"], ["fixed", "고정비"]] }) +
     field("amount", "금액", "number", item.amount || "", { min: 0 }) +
     field("date", "날짜", "date", item.date || iso()) +
     field("card", "결제수단", "select", item.card || "현금/계좌", { items: cardOptions }) +
     field("performanceIncluded", "카드 실적 포함", "select", item.performanceIncluded ? "yes" : "no", { items: [["yes", "실적 포함"], ["no", "실적 미포함"]] }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
+    { id: item.id }
+  ));
+}
+function budgetModal(item = {}) {
+  modal(item.id ? "월 예산 수정" : "월 예산 추가", form("budgetForm",
+    field("month", "적용 월", "month", item.month || ledgerMonth) +
+    field("category", "카테고리", "select", item.category || "식비", { items: BUDGET_CATEGORIES.map(value => [value, value]) }) +
+    field("amount", "월 예산", "number", item.amount || "", { min: 0 }),
     { id: item.id }
   ));
 }
@@ -470,7 +539,7 @@ function annualModal(item = {}, row = "work", month = new Date().getMonth() + 1)
     field("row", "구분", "select", item.row || row, { items: PLAN_ROWS }) +
     field("title", "계획", "text", item.title || "", { full: true }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
-    { id: item.id }
+    { id: item.id, deleteKind: "annualPlans" }
   ));
 }
 function childModal(child, section, item = {}) {
@@ -541,7 +610,11 @@ document.addEventListener("submit", event => {
   if (["captureForm", "quickForm"].includes(event.target.id)) { capture(data.text); closeModal(); return; }
   if (event.target.id === "taskForm") upsert(store.data.tasks, { title: data.title, category: data.category, date: data.date, workType: data.workType, priority: data.workType === "important" ? "high" : "normal", memo: data.memo, done: editId ? findItem("tasks", editId)?.done : false }, editId);
   if (event.target.id === "eventForm") upsert(store.data.events, { title: data.title, category: data.category, date: data.date, time: data.time, workType: data.workType, memo: data.memo }, editId);
-  if (event.target.id === "transactionForm") upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", memo: data.memo }, editId);
+  if (event.target.id === "transactionForm") upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, expenseType: data.kind === "expense" ? data.expenseType : "variable", amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", memo: data.memo }, editId);
+  if (event.target.id === "budgetForm") {
+    const duplicate = store.data.budgets.find(item => item.month === data.month && item.category === data.category && item.id !== editId);
+    upsert(store.data.budgets, { month: data.month, category: data.category, amount: n(data.amount) }, duplicate?.id || editId);
+  }
   if (event.target.id === "annualForm") upsert(store.data.annualPlans, { year: n(data.year), month: n(data.month), row: data.row, title: data.title, memo: data.memo }, editId);
   if (event.target.id === "childForm") {
     const list = store.data.childData[event.target.dataset.child][event.target.dataset.section];
@@ -576,6 +649,7 @@ document.addEventListener("click", async event => {
   if (action === "task") taskModal({}, button.dataset.cat || "work");
   if (action === "event") eventModal({}, button.dataset.cat || "work");
   if (action === "transaction") transactionModal();
+  if (action === "budgetItem") budgetModal();
   if (action === "annualItem") annualModal();
   if (action === "annualCell") annualModal({}, button.dataset.row, button.dataset.month);
   if (action === "childItem") childModal(button.dataset.child, button.dataset.section);
@@ -589,6 +663,7 @@ document.addEventListener("click", async event => {
     if (kind === "tasks") taskModal(item, item.category);
     else if (kind === "events") eventModal(item, item.category);
     else if (kind === "transactions") transactionModal(item);
+    else if (kind === "budgets") budgetModal(item);
     else if (kind === "annualPlans") annualModal(item);
     else if (kind === "childItem") childModal(button.dataset.child, button.dataset.section, item);
     else if (kind === "trips") tripModal(item, item.type);
@@ -599,10 +674,12 @@ document.addEventListener("click", async event => {
   }
   if (action === "delete") {
     const kind = button.dataset.kind, item = findItem(kind, button.dataset.id, button.dataset.child, button.dataset.section); if (!item) return;
-    if (!confirm(`"${item.title || item.name || item.item || "이 항목"}"을(를) 삭제할까요?`)) return;
+    if (!confirm(`"${item.title || item.name || item.item || item.category || "이 항목"}"을(를) 삭제할까요?`)) return;
     if (kind === "childItem") store.data.childData[button.dataset.child][button.dataset.section] = store.data.childData[button.dataset.child][button.dataset.section].filter(value => value.id !== button.dataset.id);
     else store.data[kind] = store.data[kind].filter(value => value.id !== button.dataset.id);
-    store.save("삭제했어요."); render();
+    store.save("삭제했어요.");
+    if (button.dataset.close === "yes") closeModal();
+    render();
   }
   if (action === "addOnDate") eventModal({}, "work", button.dataset.date);
   if (action === "workTab") { workTab = button.dataset.tab; render(); }
@@ -616,7 +693,18 @@ document.addEventListener("click", async event => {
   if (action === "calendarToday") { calendarCursor = new Date(); render(); }
   if (action === "annualPrev") { annualYear--; render(); }
   if (action === "annualNext") { annualYear++; render(); }
-  if (action === "ledgerPrev" || action === "ledgerNext") { const [year, month] = ledgerMonth.split("-").map(Number); const d = new Date(year, month - 1 + (action === "ledgerNext" ? 1 : -1), 1); ledgerMonth = d.toISOString().slice(0, 7); render(); }
+  if (action === "ledgerPrev" || action === "ledgerNext") { const [year, month] = ledgerMonth.split("-").map(Number); const d = new Date(year, month - 1 + (action === "ledgerNext" ? 1 : -1), 1); ledgerMonth = localMonthKey(d); render(); }
+  if (action === "copyBudgets") {
+    const previousMonth = shiftMonth(ledgerMonth, -1), previous = store.data.budgets.filter(item => item.month === previousMonth);
+    if (!previous.length) { toast(`${previousMonth}에 등록된 예산이 없어요.`); return; }
+    let added = 0;
+    previous.forEach(item => {
+      if (!store.data.budgets.some(current => current.month === ledgerMonth && current.category === item.category)) {
+        store.data.budgets.push({ id: makeId(), month: ledgerMonth, category: item.category, amount: n(item.amount) }); added++;
+      }
+    });
+    store.save(added ? `${added}개 예산을 가져왔어요.` : "이미 모든 예산이 등록되어 있어요."); render();
+  }
   if (action === "sync") syncModal();
   if (action === "signIn") { try { await store.signIn(); closeModal(); } catch { toast("로그인을 완료하지 못했어요."); } }
   if (action === "signOut") { await store.signOut(); closeModal(); }
