@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#526a5a">
-  <meta name="description" content="업무, 육아, 자산, 이사와 목표를 관리하는 은정 Brain">
+  <meta name="description" content="업무, 도담·소담, 자산, 여행과 이사를 관리하는 은정 Brain">
   <title>은정 Brain</title>
   <link rel="manifest" href="./manifest.json">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=20260806-6">
 </head>
 <body>
   <div class="shell">
@@ -16,13 +16,13 @@
       <nav id="sideNav"></nav>
       <button class="sync" data-do="sync"><i id="syncDot"></i><span><strong id="syncTitle">이 기기에 저장 중</strong><small id="syncText">PC·모바일 연결 설정</small></span></button>
     </aside>
-    <header class="mobileHead"><a class="brand" href="#/home"><b>EJ</b><strong>은정 Brain</strong></a><button class="iconBtn" data-do="sync">☁</button></header>
+    <header class="mobileHead"><a class="brand" href="#/home"><b>EJ</b><strong>은정 Brain</strong></a><div class="mobileHeadActions"><button class="iconBtn" data-do="mobileMenu" aria-label="전체메뉴">☰</button><button class="iconBtn" data-do="sync" aria-label="동기화">☁</button></div></header>
     <main id="app"></main>
     <button class="fab" data-do="quick">＋</button>
     <nav class="bottom" id="bottomNav"></nav>
   </div>
   <div class="backdrop" id="backdrop" hidden><section class="modal"><header><div><small>EJ BRAIN</small><h2 id="modalTitle"></h2></div><button class="iconBtn" data-do="close">×</button></header><div id="modalBody"></div></section></div>
   <div class="toast" id="toast"></div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=20260806-6"></script>
 </body>
 </html>
