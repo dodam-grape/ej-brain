@@ -7,6 +7,7 @@ const NAV = [
 ];
 const LABEL = Object.fromEntries(NAV.map(([key, label]) => [key, label]));
 const WORK_TYPES = [["br", "BR"], ["dd", "DD"], ["important", "중요"], ["normal", "보통"]];
+const CHILD_TYPES = [["dodam", "도담"], ["sodam", "소담"], ["important", "중요"], ["normal", "보통"]];
 const PLAN_ROWS = [["work", "업무"], ["family", "가족"], ["dodam", "도담"], ["sodam", "소담"], ["assets", "자산"]];
 const TRANSACTION_CATEGORIES = ["식비", "외식·배달", "생활비", "생활용품", "교육", "주거", "보험", "교통", "의료", "여행", "쇼핑", "기타", "급여"];
 const BUDGET_CATEGORIES = TRANSACTION_CATEGORIES.filter(category => category !== "급여");
@@ -119,6 +120,7 @@ function normalize(raw = {}) {
   data.tasks = data.tasks.map(item => ({ workType: item.priority === "high" ? "important" : "normal", memo: "", ...item }));
   data.events = data.events.map(item => ({ workType: "normal", memo: "", ...item }));
   data.transactions = data.transactions.map(item => ({ card: "현금/계좌", performanceIncluded: false, expenseType: "variable", memo: "", ...item }));
+  data.installments = data.installments.map(item => ({ monthlyPayment: n(item.monthlyPayment) || (n(item.months) ? Math.round(n(item.balance) / n(item.months)) : 0), ...item }));
   data.moveItems = data.moveItems.map(item => ({ due: "2027-03-06", cost: 0, memo: "", ...item }));
   const legacyDebts = data.accounts.filter(item => item.type === "debt");
   data.accounts = data.accounts.filter(item => item.type !== "debt");
@@ -261,7 +263,7 @@ function calendar(items, options = {}) {
     const holiday = holidayName(dateKey), weekday = day.getDay(), dayItems = items.filter(item => (item.date || item.due) === dateKey);
     const dateTone = holiday || weekday === 0 ? "holiday" : weekday === 6 ? "saturday" : "";
     return `<div class="day ${day.getMonth() !== month ? "out" : ""} ${dateKey === iso() ? "today" : ""} ${dateTone}"><div class="dayHead"><button class="num" data-do="addOnDate" data-cat="${category}" data-date="${dateKey}">${day.getDate()}</button>${holiday ? `<small>${esc(holiday)}</small>` : ""}</div>
-      ${dayItems.slice(0, 5).map(item => `<button class="calItem ${category === "work" ? `work-${item.workType || "normal"}` : "child-event"}" data-do="edit" data-kind="${item.time !== undefined ? "events" : "tasks"}" data-id="${item.id}">${esc(item.title)}</button>`).join("")}</div>`;
+      ${dayItems.slice(0, 5).map(item => `<button class="calItem ${category === "work" ? `work-${item.workType || "normal"}` : `child-${item.workType || "normal"}` }" data-do="edit" data-kind="${item.time !== undefined ? "events" : "tasks"}" data-id="${item.id}">${esc(item.title)}</button>`).join("")}</div>`;
   }).join("");
   return `<article class="panel"><header class="panelHead"><div><h2>${options.title || `${year}년 ${month + 1}월`}</h2><p>${year}년 ${month + 1}월 · ${options.copy || "날짜를 누르면 일정을 추가할 수 있어요"}</p></div><div class="rowActions"><button data-do="calendarPrev">‹ 이전</button><button data-do="calendarToday">오늘</button><button data-do="calendarNext">다음 ›</button></div></header><div class="panelBody calendarWrap"><div class="calendar"><div class="week">${["일", "월", "화", "수", "목", "금", "토"].map((x, index) => `<span class="${index === 0 ? "holiday" : index === 6 ? "saturday" : ""}">${x}</span>`).join("")}</div><div class="days">${days}</div></div></div></article>`;
 }
@@ -284,7 +286,7 @@ function parentingView() {
 }
 function childOverview() {
   const childItems = [...store.data.events.filter(item => item.category === "parenting"), ...store.data.tasks.filter(item => item.category === "parenting")];
-  return `<section class="people"><article class="person dodam"><span class="avatar">📚</span><h3>도담</h3><p>초등 1학년<br>독서 · 사고력수학 · 영어 · 줄넘기</p><button class="primary space" data-do="openChild" data-child="dodam">도담 관리</button></article><article class="person sodam"><span class="avatar">🌼</span><h3>소담</h3><p>5세<br>그림책 · 놀이수학 · 한글 · 신체활동</p><button class="primary space" data-do="openChild" data-child="sodam">소담 관리</button></article><article class="person"><span class="avatar">🗓</span><h3>아이 일정</h3><p>학교·유치원·학원·체험학습 일정을 모아요.</p><button class="primary space" data-do="event" data-cat="parenting">아이 일정 추가</button></article></section><div class="space">${calendar(childItems, { category: "parenting", title: "도담·소담 달력", copy: "홈에서 도담·소담으로 등록한 할 일도 함께 표시됩니다" })}</div>`;
+  return `<section class="people"><article class="person dodam"><span class="avatar">📚</span><h3>도담</h3><p>초등 1학년<br>독서 · 사고력수학 · 영어 · 줄넘기</p><button class="primary space" data-do="openChild" data-child="dodam">도담 관리</button></article><article class="person sodam"><span class="avatar">🌼</span><h3>소담</h3><p>5세<br>그림책 · 놀이수학 · 한글 · 신체활동</p><button class="primary space" data-do="openChild" data-child="sodam">소담 관리</button></article><article class="person"><span class="avatar">🗓</span><h3>아이 일정</h3><p>학교·유치원·학원·체험학습 일정을 모아요.</p><button class="primary space" data-do="event" data-cat="parenting">아이 일정 추가</button></article></section><div class="calendarLegend space">${CHILD_TYPES.map(([type, label]) => `<span class="child-${type}">${label}</span>`).join("")}</div><div>${calendar(childItems, { category: "parenting", title: "도담·소담 달력", copy: "도담·소담·중요·보통을 서로 다른 색으로 표시합니다" })}</div>`;
 }
 function childDetail(child) {
   const name = child === "dodam" ? "도담" : "소담", data = store.data.childData[child];
@@ -307,11 +309,34 @@ function assetSummary() {
   const liquid = store.data.accounts.filter(item => item.type !== "debt").reduce((sum, item) => sum + n(item.amount), 0);
   const property = store.data.properties.reduce((sum, item) => sum + n(item.currentValue), 0);
   const stocks = store.data.stocks.reduce((sum, item) => sum + n(item.shares) * n(item.currentPrice || item.avgPrice), 0);
-  const debt = store.data.loans.reduce((sum, item) => sum + n(item.amount), 0) + store.data.installments.reduce((sum, item) => sum + n(item.balance), 0);
+  const debt = store.data.loans.reduce((sum, item) => sum + n(item.amount), 0);
   const monthTx = store.data.transactions.filter(item => item.date.startsWith(ledgerMonth));
   const income = monthTx.filter(item => item.kind === "income").reduce((sum, item) => sum + n(item.amount), 0);
   const expense = monthTx.filter(item => item.kind === "expense").reduce((sum, item) => sum + n(item.amount), 0);
   return { liquid, property, stocks, debt, asset: liquid + property + stocks, net: liquid + property + stocks - debt, income, expense };
+}
+function activeInstallments(monthKey = ledgerMonth) {
+  return store.data.installments.filter(item => !item.due || String(item.due).slice(0, 7) >= monthKey);
+}
+function installmentMonthlyAmount(item) {
+  return n(item.monthlyPayment) || (n(item.months) ? Math.round(n(item.balance) / n(item.months)) : 0);
+}
+function cardBill(cardName, monthKey = ledgerMonth) {
+  const transactionTotal = store.data.transactions.filter(item => item.kind === "expense" && item.date.startsWith(monthKey) && item.card === cardName).reduce((sum, item) => sum + n(item.amount), 0);
+  const installmentTotal = activeInstallments(monthKey).filter(item => item.card === cardName).reduce((sum, item) => sum + installmentMonthlyAmount(item), 0);
+  return { transactionTotal, installmentTotal, total: transactionTotal + installmentTotal };
+}
+function spendingAnalysis(monthKey = ledgerMonth) {
+  const totals = monthTotals(monthKey), expense = totals.expense;
+  const fixedRate = expense ? totals.fixed / expense * 100 : 0, variableRate = expense ? totals.variable / expense * 100 : 0;
+  const categoryAmount = category => totals.items.filter(item => item.kind === "expense" && item.category === category).reduce((sum, item) => sum + n(item.amount), 0);
+  const combinedAmount = categories => categories.reduce((sum, category) => sum + categoryAmount(category), 0);
+  const education = combinedAmount(["교육", "교육비"]), living = combinedAmount(["생활비", "생활용품", "식비", "외식·배달"]);
+  const ratio = amount => expense ? amount / expense * 100 : 0;
+  const level = rate => rate >= 35 ? "danger" : rate >= 25 ? "warn" : "safe";
+  const label = rate => rate >= 35 ? "경고" : rate >= 25 ? "주의" : "안정";
+  const suggestedVariable = totals.income ? Math.max(totals.income * .45 - totals.fixed, 0) : totals.variable;
+  return { ...totals, fixedRate, variableRate, education, educationRate: ratio(education), living, livingRate: ratio(living), level, label, suggestedVariable };
 }
 function assetsView() {
   const tabs = [["dashboard", "자산 대시보드"], ["ledger", "월별 가계부"], ["cards", "카드 실적"], ["manage", "자산관리"]]
@@ -320,18 +345,23 @@ function assetsView() {
   return `${pageHead("자산", "카드실적·월별 가계부·자산 상세현황을 자동 계산해요.", `<button class="primary" data-do="transaction">＋ 사용내역</button>`)}<div class="tabs">${tabs}</div>${content}`;
 }
 function assetDashboard() {
-  const s = assetSummary();
-  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출·할부</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 월별 가계 흐름</h3><p>수입 ${won(s.income)} · 지출 ${won(s.expense)}<br>이번 달 가계 잔액은 ${signedWon(s.income - s.expense)}입니다.</p></article></section>
-  <section class="stats">${stat("현금·예금", won(s.liquid), "입력계좌 합계", "₩")}${stat("주식", won(s.stocks), "현재가 기준", "↗")}${stat("부동산", won(s.property), "현재시세 기준", "⌂")}${stat("부채", won(s.debt), "대출+할부 잔액", "−")}</section>
+  const s = assetSummary(), a = spendingAnalysis();
+  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 월예산 가이드</h3><p>고정비 ${Math.round(a.fixedRate)}% · 변동비 ${Math.round(a.variableRate)}%<br>${a.income ? `수입 기준 권장 변동비 한도는 ${won(a.suggestedVariable)}입니다.` : "수입을 입력하면 권장 변동비 한도를 계산해 드려요."}</p></article></section>
+  <section class="stats">${stat("현금·예금", won(s.liquid), "입력계좌 합계", "₩")}${stat("주식", won(s.stocks), "현재가 기준", "↗")}${stat("부동산", won(s.property), "현재시세 기준", "⌂")}${stat("부채", won(s.debt), "대출 잔액만 반영", "−")}</section>
+  ${spendingRatioPanel(a)}
   ${cardPerformance(true)}
   <section class="grid2 space"><article class="panel"><header class="panelHead"><div><h2>최근 가계부</h2><p>수입·지출·카드실적 반영</p></div><button class="textBtn" data-do="transaction">＋ 내역</button></header><div class="panelBody">${transactionRows([...store.data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6))}</div></article><article class="panel"><header class="panelHead"><div><h2>자산관리 요약</h2><p>상세현황 항목 수</p></div></header><div class="panelBody assetCounts">${Object.entries(ASSET_SECTIONS).map(([key, label]) => `<button data-do="assetSection" data-section="${key}"><b>${store.data[key].length}</b><span>${label}</span></button>`).join("")}</div></article></section>`;
+}
+function spendingRatioPanel(a) {
+  const category = (name, amount, rate) => `<div class="ratioAlert ${a.level(rate)}"><div><strong>${name}</strong><span>${a.label(rate)}</span></div><b>${won(amount)} · ${Math.round(rate)}%</b><small>${rate >= 35 ? "전체 지출의 35% 이상이에요. 다음 달 예산을 낮추거나 세부 내역을 확인해 보세요." : rate >= 25 ? "전체 지출의 25% 이상이에요. 남은 기간 사용을 조절해 보세요." : "전체 지출 대비 안정적인 범위예요."}</small></div>`;
+  return `<article class="panel spendingPanel space"><header class="panelHead"><div><h2>고정비 · 변동비 비율 분석</h2><p>이번 달 실제 지출을 기준으로 다음 달 예산을 설계해요</p></div></header><div class="panelBody"><div class="ratioBars"><div><span>고정비 ${Math.round(a.fixedRate)}%</span><i><b style="width:${Math.min(a.fixedRate, 100)}%"></b></i><small>${won(a.fixed)}</small></div><div><span>변동비 ${Math.round(a.variableRate)}%</span><i><b style="width:${Math.min(a.variableRate, 100)}%"></b></i><small>${won(a.variable)}</small></div></div><div class="ratioAlerts">${category("교육비", a.education, a.educationRate)}${category("생활비", a.living, a.livingRate)}</div></div></article>`;
 }
 function cardPerformance(compact = false) {
   const monthItems = store.data.transactions.filter(item => item.date.startsWith(ledgerMonth) && item.kind === "expense" && item.performanceIncluded);
   return `<section class="cardGrid ${compact ? "space" : ""}">${store.data.cards.map(card => {
-    const used = monthItems.filter(item => item.card === card.name).reduce((sum, item) => sum + n(item.amount), 0);
+    const used = monthItems.filter(item => item.card === card.name).reduce((sum, item) => sum + n(item.amount), 0), bill = cardBill(card.name);
     const target = n(card.target), remain = Math.max(target - used, 0), rate = target ? Math.min(used / target * 100, 100) : 0;
-    return `<article class="cardPerformance"><header><div><small>${ledgerMonth}</small><h3>${esc(card.name)}</h3></div>${actionButtons("cards", card.id)}</header><strong>${won(used)}</strong><p>${target ? remain ? `실적까지 ${won(remain)} 더 필요` : "목표 실적 달성!" : "목표실적을 입력해 주세요"}</p><div class="progress"><i style="width:${rate}%"></i></div><small>${target ? `${won(used)} / ${won(target)}` : "목표 없음"}</small></article>`;
+    return `<article class="cardPerformance"><header><div><small>${ledgerMonth}</small><h3>${esc(card.name)}</h3></div>${actionButtons("cards", card.id)}</header><strong>${won(bill.total)}</strong><p>예상 카드값 · 할부 ${won(bill.installmentTotal)} 포함</p><div class="progress"><i style="width:${rate}%"></i></div><small>${target ? `인정실적 ${won(used)} / ${won(target)} · ${remain ? `${won(remain)} 남음` : "달성"}` : `인정실적 ${won(used)} · 목표 없음`}</small></article>`;
   }).join("")}</section>`;
 }
 function monthTotals(monthKey) {
@@ -399,7 +429,7 @@ function assetManage() {
 function assetSectionHint(key) {
   return {
     accounts: "계좌·현금성 자산", loans: "금액·만기·금리·이자", insurances: "대상자·보험료·예상수령액",
-    stocks: "종목·주수·평단가·수익률", installments: "카드·항목·개월수·잔액", properties: "구매가·현재시세"
+    stocks: "종목·주수·평단가·수익률", installments: "월 카드값에는 포함 · 카드 실적과 대출에서는 제외", properties: "구매가·현재시세"
   }[key] || "세부현황";
 }
 function assetRows(section) {
@@ -419,7 +449,7 @@ function assetItemSub(section, item) {
     accounts: item.memo || item.type, loans: `만기 ${item.due || "-"} · 금리 ${pct(item.rate)} · 월이자 ${won(item.interestAmount)}`,
     insurances: `보험료 ${won(item.premium)} · 만기 ${item.due || "-"} · 예상수령 ${won(item.expected)}`,
     stocks: `평단 ${won(item.avgPrice)} · 현재 ${won(item.currentPrice)} · 수익률 ${pct(stockRate(item))}`,
-    otherAssets: `${item.type || "가족대출"} · 대시보드 제외`, installments: `${item.months}개월 · 만료 ${item.due || "-"} · 잔액 ${won(item.balance)}`,
+    otherAssets: `${item.type || "가족대출"} · 대시보드 제외`, installments: `월 ${won(installmentMonthlyAmount(item))} · ${item.months}개월 · 만료 ${item.due || "-"} · 실적 미포함`,
     properties: `구매 ${won(item.purchasePrice)} · 대출 ${won(item.loan)} · ${item.memo || ""}`
   }[section];
 }
@@ -501,22 +531,24 @@ function upsert(list, item, editId) {
 }
 
 function taskModal(item = {}, category = "work", presetDate = "") {
+  const typeOptions = (item.category || category) === "parenting" ? CHILD_TYPES : WORK_TYPES;
   modal(item.id ? "할 일 수정" : "새 할 일", form("taskForm",
     field("title", "할 일", "text", item.title || "", { full: true }) +
     field("category", "카테고리", "select", item.category || category, { items: NAV.filter(x => !["home", "annual"].includes(x[0])).map(x => [x[0], x[1]]) }) +
     field("date", "마감일", "date", item.date || presetDate || iso()) +
-    field("workType", "업무 색상", "select", item.workType || "normal", { items: WORK_TYPES }) +
+    field("workType", (item.category || category) === "parenting" ? "아이 일정 구분" : "업무 색상", "select", item.workType || "normal", { items: typeOptions }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
     { id: item.id, deleteKind: "tasks" }
   ));
 }
 function eventModal(item = {}, category = "work", presetDate = "") {
+  const typeOptions = (item.category || category) === "parenting" ? CHILD_TYPES : WORK_TYPES;
   modal(item.id ? "일정 수정" : "새 일정", form("eventForm",
     field("title", "일정 이름", "text", item.title || "", { full: true }) +
     field("category", "카테고리", "select", item.category || category, { items: NAV.filter(x => !["home", "annual"].includes(x[0])).map(x => [x[0], x[1]]) }) +
     field("date", "날짜", "date", item.date || presetDate || iso()) +
     field("time", "시간", "time", item.time || "09:00") +
-    field("workType", "업무 색상", "select", item.workType || "normal", { items: WORK_TYPES }) +
+    field("workType", (item.category || category) === "parenting" ? "아이 일정 구분" : "업무 색상", "select", item.workType || "normal", { items: typeOptions }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
     { id: item.id, deleteKind: "events" }
   ));
@@ -593,7 +625,7 @@ function assetModal(section, item = {}) {
   if (section === "insurances") fields = field("name", "보험명", "text", item.name || "") + field("person", "대상자", "text", item.person || "") + field("premium", "보험료", "number", item.premium || 0, { min: 0 }) + field("due", "만기일", "date", item.due || iso()) + field("expected", "예상수령액", "number", item.expected || 0, { min: 0 }) + memo;
   if (section === "stocks") fields = field("name", "종목", "text", item.name || "") + field("shares", "주", "number", item.shares || 0, { min: 0, step: "0.0001" }) + field("avgPrice", "평단가", "number", item.avgPrice || 0, { min: 0 }) + field("currentPrice", "현재가", "number", item.currentPrice || 0, { min: 0 }) + memo;
   if (section === "otherAssets") fields = field("name", "항목", "text", item.name || "가족대출") + field("type", "종류", "text", item.type || "가족대출") + field("amount", "금액", "number", item.amount || 0, { min: 0 }) + memo;
-  if (section === "installments") fields = field("card", "카드", "text", item.card || "") + field("item", "항목", "text", item.item || "") + field("due", "만료일", "date", item.due || iso()) + field("months", "개월수", "number", item.months || 0, { min: 0 }) + field("balance", "잔액", "number", item.balance || 0, { min: 0 }) + memo;
+  if (section === "installments") fields = field("card", "카드", "select", item.card || store.data.cards[0]?.name || "", { items: store.data.cards.map(card => [card.name, card.name]) }) + field("item", "항목", "text", item.item || "") + field("due", "만료일", "date", item.due || iso()) + field("months", "남은 개월수", "number", item.months || 0, { min: 0 }) + field("monthlyPayment", "월 할부금", "number", item.monthlyPayment || installmentMonthlyAmount(item), { min: 0 }) + field("balance", "잔액", "number", item.balance || 0, { min: 0 }) + memo;
   if (section === "properties") fields = field("name", "부동산명", "text", item.name || "") + field("purchasePrice", "구매가", "number", item.purchasePrice || 0, { min: 0 }) + field("currentValue", "현재시세", "number", item.currentValue || 0, { min: 0 }) + field("loan", "관련대출", "number", item.loan || 0, { min: 0 }) + field("purchaseDate", "구매일", "date", item.purchaseDate || iso()) + memo;
   modal(`${ASSET_SECTIONS[section]} ${item.id ? "수정" : "추가"}`, form("assetForm", fields, { id: item.id, extra: `data-section="${section}"` }));
 }
@@ -649,7 +681,7 @@ document.addEventListener("submit", event => {
   }
   if (event.target.id === "assetForm") {
     const section = event.target.dataset.section, item = { ...data };
-    ["amount", "rate", "interestAmount", "premium", "expected", "shares", "avgPrice", "currentPrice", "months", "balance", "purchasePrice", "currentValue", "loan"].forEach(key => { if (key in item) item[key] = n(item[key]); });
+    ["amount", "rate", "interestAmount", "premium", "expected", "shares", "avgPrice", "currentPrice", "months", "monthlyPayment", "balance", "purchasePrice", "currentValue", "loan"].forEach(key => { if (key in item) item[key] = n(item[key]); });
     upsert(store.data[section], item, editId);
   }
   if (event.target.id === "simpleForm") {
