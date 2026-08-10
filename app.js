@@ -119,7 +119,14 @@ function normalize(raw = {}) {
   if (!data.cards.length) data.cards = base.cards;
   data.tasks = data.tasks.map(item => ({ workType: item.priority === "high" ? "important" : "normal", memo: "", ...item }));
   data.events = data.events.map(item => ({ workType: "normal", memo: "", ...item }));
-  data.transactions = data.transactions.map(item => ({ card: "현금/계좌", performanceIncluded: false, expenseType: "variable", memo: "", ...item }));
+  data.transactions = data.transactions.map(item => ({ card: "현금/계좌", performanceIncluded: false, expenseType: "variable", memo: "", ...item, recurringMonthly: item.recurringMonthly ?? (item.kind === "expense" && item.expenseType === "fixed") }));
+  const fixedSources = new Map();
+  data.transactions.filter(item => item.kind === "expense" && item.expenseType === "fixed").sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
+    const fingerprint = [item.title, item.category, item.card, String(item.date || "").slice(8)].join("|");
+    if (!fixedSources.has(fingerprint)) fixedSources.set(fingerprint, item.recurringSourceId || item.id);
+    item.recurringSourceId = fixedSources.get(fingerprint);
+    item.recurringMonthly = true;
+  });
   data.installments = data.installments.map(item => ({ monthlyPayment: n(item.monthlyPayment) || (n(item.months) ? Math.round(n(item.balance) / n(item.months)) : 0), ...item }));
   data.moveItems = data.moveItems.map(item => ({ due: "2027-03-06", cost: 0, memo: "", ...item }));
   const legacyDebts = data.accounts.filter(item => item.type === "debt");
@@ -310,9 +317,7 @@ function assetSummary() {
   const property = store.data.properties.reduce((sum, item) => sum + n(item.currentValue), 0);
   const stocks = store.data.stocks.reduce((sum, item) => sum + n(item.shares) * n(item.currentPrice || item.avgPrice), 0);
   const debt = store.data.loans.reduce((sum, item) => sum + n(item.amount), 0);
-  const monthTx = store.data.transactions.filter(item => item.date.startsWith(ledgerMonth));
-  const income = monthTx.filter(item => item.kind === "income").reduce((sum, item) => sum + n(item.amount), 0);
-  const expense = monthTx.filter(item => item.kind === "expense").reduce((sum, item) => sum + n(item.amount), 0);
+  const { income, expense } = monthTotals(ledgerMonth);
   return { liquid, property, stocks, debt, asset: liquid + property + stocks, net: liquid + property + stocks - debt, income, expense };
 }
 function activeInstallments(monthKey = ledgerMonth) {
@@ -321,8 +326,24 @@ function activeInstallments(monthKey = ledgerMonth) {
 function installmentMonthlyAmount(item) {
   return n(item.monthlyPayment) || (n(item.months) ? Math.round(n(item.balance) / n(item.months)) : 0);
 }
+function recurringKey(item) { return item.recurringSourceId || item.id; }
+function monthDate(monthKey, dayValue) {
+  const [year, month] = monthKey.split("-").map(Number), lastDay = new Date(year, month, 0).getDate();
+  return `${monthKey}-${String(Math.min(n(dayValue) || 1, lastDay)).padStart(2, "0")}`;
+}
+function effectiveMonthItems(monthKey) {
+  const actual = store.data.transactions.filter(item => item.date.startsWith(monthKey));
+  const actualKeys = new Set(actual.filter(item => item.kind === "expense" && item.expenseType === "fixed").map(recurringKey));
+  const latest = new Map();
+  store.data.transactions.filter(item => item.kind === "expense" && item.expenseType === "fixed" && item.recurringMonthly !== false && item.date.slice(0, 7) < monthKey).forEach(item => {
+    const key = recurringKey(item), saved = latest.get(key);
+    if (!saved || item.date > saved.date) latest.set(key, item);
+  });
+  const repeated = [...latest.entries()].filter(([key]) => !actualKeys.has(key)).map(([, item]) => ({ ...item, date: monthDate(monthKey, String(item.date).slice(8)), _repeated: true }));
+  return [...actual, ...repeated];
+}
 function cardBill(cardName, monthKey = ledgerMonth) {
-  const transactionTotal = store.data.transactions.filter(item => item.kind === "expense" && item.date.startsWith(monthKey) && item.card === cardName).reduce((sum, item) => sum + n(item.amount), 0);
+  const transactionTotal = effectiveMonthItems(monthKey).filter(item => item.kind === "expense" && item.card === cardName).reduce((sum, item) => sum + n(item.amount), 0);
   const installmentTotal = activeInstallments(monthKey).filter(item => item.card === cardName).reduce((sum, item) => sum + installmentMonthlyAmount(item), 0);
   return { transactionTotal, installmentTotal, total: transactionTotal + installmentTotal };
 }
@@ -357,7 +378,7 @@ function spendingRatioPanel(a) {
   return `<article class="panel spendingPanel space"><header class="panelHead"><div><h2>고정비 · 변동비 비율 분석</h2><p>이번 달 실제 지출을 기준으로 다음 달 예산을 설계해요</p></div></header><div class="panelBody"><div class="ratioBars"><div><span>고정비 ${Math.round(a.fixedRate)}%</span><i><b style="width:${Math.min(a.fixedRate, 100)}%"></b></i><small>${won(a.fixed)}</small></div><div><span>변동비 ${Math.round(a.variableRate)}%</span><i><b style="width:${Math.min(a.variableRate, 100)}%"></b></i><small>${won(a.variable)}</small></div></div><div class="ratioAlerts">${category("교육비", a.education, a.educationRate)}${category("생활비", a.living, a.livingRate)}</div></div></article>`;
 }
 function cardPerformance(compact = false) {
-  const monthItems = store.data.transactions.filter(item => item.date.startsWith(ledgerMonth) && item.kind === "expense" && item.performanceIncluded);
+  const monthItems = effectiveMonthItems(ledgerMonth).filter(item => item.kind === "expense" && item.performanceIncluded);
   return `<section class="cardGrid ${compact ? "space" : ""}">${store.data.cards.map(card => {
     const used = monthItems.filter(item => item.card === card.name).reduce((sum, item) => sum + n(item.amount), 0), bill = cardBill(card.name);
     const target = n(card.target), remain = Math.max(target - used, 0), rate = target ? Math.min(used / target * 100, 100) : 0;
@@ -365,12 +386,14 @@ function cardPerformance(compact = false) {
   }).join("")}</section>`;
 }
 function monthTotals(monthKey) {
-  const items = store.data.transactions.filter(item => item.date.startsWith(monthKey));
+  const items = effectiveMonthItems(monthKey);
   const income = items.filter(item => item.kind === "income").reduce((sum, item) => sum + n(item.amount), 0);
   const expenses = items.filter(item => item.kind === "expense");
-  const expense = expenses.reduce((sum, item) => sum + n(item.amount), 0);
-  const fixed = expenses.filter(item => item.expenseType === "fixed").reduce((sum, item) => sum + n(item.amount), 0);
-  return { items, income, expense, fixed, variable: expense - fixed, net: income - expense };
+  const installment = activeInstallments(monthKey).reduce((sum, item) => sum + installmentMonthlyAmount(item), 0);
+  const enteredExpense = expenses.reduce((sum, item) => sum + n(item.amount), 0);
+  const expense = enteredExpense + installment;
+  const fixed = expenses.filter(item => item.expenseType === "fixed").reduce((sum, item) => sum + n(item.amount), 0) + installment;
+  return { items, income, expense, enteredExpense, installment, fixed, variable: expense - fixed, net: income - expense };
 }
 function budgetSection(monthItems) {
   const budgets = store.data.budgets.filter(item => item.month === ledgerMonth).sort((a, b) => a.category.localeCompare(b.category, "ko"));
@@ -411,17 +434,17 @@ function monthlyClosing() {
 function ledgerView() {
   const totals = monthTotals(ledgerMonth), items = [...totals.items].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월</strong><button data-do="ledgerNext">›</button></div>
-  <section class="stats">${stat("수입", won(totals.income), "월 수입 합계", "+")}${stat("지출", won(totals.expense), "월 지출 합계", "−")}${stat("고정비", won(totals.fixed), "조절하기 어려운 지출", "▣")}${stat("변동비", won(totals.variable), "이번 달 조절 가능한 지출", "↕")}</section>
+  <section class="stats">${stat("수입", won(totals.income), "월 수입 합계", "+")}${stat("지출", won(totals.expense), `사용내역＋할부 ${won(totals.installment)}`, "−")}${stat("고정비", won(totals.fixed), "월 할부금 포함", "▣")}${stat("변동비", won(totals.variable), "이번 달 조절 가능한 지출", "↕")}</section>
   ${budgetSection(items)}
   <article class="panel space"><header class="panelHead"><div><h2>${ledgerMonth} 가계부</h2><p>고정비·변동비와 카드실적을 함께 기록합니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(items)}</div></article>
   <div class="space">${monthlyClosing()}</div>`;
 }
 function transactionRows(items) {
   if (!items.length) return empty("₩", "첫 가계부 내역을 입력해 보세요.");
-  return `<div class="rows">${items.map(item => `<article class="row"><i class="ico">${item.kind === "income" ? "+" : "−"}</i><div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.date} · ${esc(item.category)} · ${item.kind === "expense" ? item.expenseType === "fixed" ? "고정비" : "변동비" : "수입"} · ${esc(item.card || "현금/계좌")} ${item.performanceIncluded ? "· 실적포함" : "· 실적미포함"}</small></div><span class="amount ${item.kind}">${item.kind === "income" ? "+" : "−"}${won(item.amount)}</span>${actionButtons("transactions", item.id)}</article>`).join("")}</div>`;
+  return `<div class="rows">${items.map(item => `<article class="row"><i class="ico">${item.kind === "income" ? "+" : "−"}</i><div class="rowCopy"><strong>${esc(item.title)}</strong><small>${item.date} · ${esc(item.category)} · ${item.kind === "expense" ? item.expenseType === "fixed" ? `고정비${item._repeated ? "·매달 반복" : ""}` : "변동비" : "수입"} · ${esc(item.card || "현금/계좌")} ${item.performanceIncluded ? "· 실적포함" : "· 실적미포함"}</small></div><span class="amount ${item.kind}">${item.kind === "income" ? "+" : "−"}${won(item.amount)}</span>${actionButtons("transactions", item.id)}</article>`).join("")}</div>`;
 }
 function cardView() {
-  return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월 카드실적</strong><button data-do="ledgerNext">›</button></div>${cardPerformance()}<article class="panel space"><header class="panelHead"><div><h2>실적 포함 사용내역</h2><p>실적미포함은 합계에서 제외됩니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(store.data.transactions.filter(item => item.date.startsWith(ledgerMonth) && item.performanceIncluded))}</div></article>`;
+  return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월 카드실적</strong><button data-do="ledgerNext">›</button></div>${cardPerformance()}<article class="panel space"><header class="panelHead"><div><h2>실적 포함 사용내역</h2><p>실적미포함은 합계에서 제외됩니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(effectiveMonthItems(ledgerMonth).filter(item => item.performanceIncluded))}</div></article>`;
 }
 function assetManage() {
   return `<section class="assetManageGrid">${Object.entries(ASSET_SECTIONS).map(([key, label]) => `<article class="panel"><header class="panelHead"><div><h2>${label}</h2><p>${key === "otherAssets" ? "순자산 대시보드에서 제외" : assetSectionHint(key)}</p></div><button class="textBtn" data-do="assetItem" data-section="${key}">＋ 추가</button></header><div class="panelBody">${assetRows(key)}</div></article>`).join("")}</section>`;
@@ -660,7 +683,12 @@ document.addEventListener("submit", event => {
   if (["captureForm", "quickForm"].includes(event.target.id)) { capture(data.text); closeModal(); return; }
   if (event.target.id === "taskForm") upsert(store.data.tasks, { title: data.title, category: data.category, date: data.date, workType: data.workType, priority: data.workType === "important" ? "high" : "normal", memo: data.memo, done: editId ? findItem("tasks", editId)?.done : false }, editId);
   if (event.target.id === "eventForm") upsert(store.data.events, { title: data.title, category: data.category, date: data.date, time: data.time, workType: data.workType, memo: data.memo }, editId);
-  if (event.target.id === "transactionForm") upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, expenseType: data.kind === "expense" ? data.expenseType : "variable", amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", memo: data.memo }, editId);
+  if (event.target.id === "transactionForm") {
+    const fixed = data.kind === "expense" && data.expenseType === "fixed";
+    const editing = editId ? findItem("transactions", editId) : null;
+    const sameFixed = fixed ? store.data.transactions.find(item => item.id !== editId && item.kind === "expense" && item.expenseType === "fixed" && item.title === data.title && item.category === data.category && item.card === data.card) : null;
+    upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, expenseType: data.kind === "expense" ? data.expenseType : "variable", amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", recurringMonthly: fixed, recurringSourceId: fixed ? (editing?.recurringSourceId || sameFixed?.recurringSourceId || sameFixed?.id || editId || "") : "", memo: data.memo }, editId);
+  }
   if (event.target.id === "budgetForm") {
     const duplicate = store.data.budgets.find(item => item.month === data.month && item.category === data.category && item.id !== editId);
     upsert(store.data.budgets, { month: data.month, category: data.category, amount: n(data.amount) }, duplicate?.id || editId);
