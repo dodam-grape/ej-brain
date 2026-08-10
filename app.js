@@ -359,6 +359,24 @@ function spendingAnalysis(monthKey = ledgerMonth) {
   const suggestedVariable = totals.income ? Math.max(totals.income * .45 - totals.fixed, 0) : totals.variable;
   return { ...totals, fixedRate, variableRate, education, educationRate: ratio(education), living, livingRate: ratio(living), level, label, suggestedVariable };
 }
+const CHART_COLORS = ["#526a5a", "#d7a761", "#c77c76", "#7097a3", "#8f80a9", "#87a979", "#d18bac", "#9e8d72", "#6393bd", "#b8a34e", "#866f91", "#73a19d"];
+function categoryBreakdown(monthKey, expenseType) {
+  const totals = monthTotals(monthKey), amounts = new Map();
+  totals.items.filter(item => item.kind === "expense" && item.expenseType === expenseType).forEach(item => amounts.set(item.category || "기타", (amounts.get(item.category || "기타") || 0) + n(item.amount)));
+  if (expenseType === "fixed" && totals.installment) amounts.set("할부", (amounts.get("할부") || 0) + totals.installment);
+  const total = [...amounts.values()].reduce((sum, amount) => sum + amount, 0);
+  return [...amounts.entries()].map(([category, amount]) => ({ category, amount, rate: total ? amount / total * 100 : 0 })).sort((a, b) => b.amount - a.amount);
+}
+function consumptionDiagnosis(monthKey = ledgerMonth) {
+  const current = monthTotals(monthKey), previous = monthTotals(shiftMonth(monthKey, -1));
+  const all = [...categoryBreakdown(monthKey, "fixed"), ...categoryBreakdown(monthKey, "variable")];
+  const merged = new Map();
+  all.forEach(item => merged.set(item.category, (merged.get(item.category) || 0) + item.amount));
+  const top = [...merged.entries()].sort((a, b) => b[1] - a[1])[0];
+  const diff = current.expense - previous.expense;
+  const comparison = current.expense === 0 && previous.expense === 0 ? "사용내역을 입력하면 전월과 비교해 드려요." : diff > 0 ? `전월보다 ${won(diff)} 더 사용했어요.` : diff < 0 ? `전월보다 ${won(Math.abs(diff))} 덜 사용했어요.` : "전월과 지출이 같아요.";
+  return { top, comparison, current, previous };
+}
 function assetsView() {
   const tabs = [["dashboard", "자산 대시보드"], ["ledger", "월별 가계부"], ["cards", "카드 실적"], ["manage", "자산관리"]]
     .map(([key, label]) => `<button class="${assetTab === key ? "on" : ""}" data-do="assetTab" data-tab="${key}">${label}</button>`).join("");
@@ -366,16 +384,23 @@ function assetsView() {
   return `${pageHead("자산", "카드실적·월별 가계부·자산 상세현황을 자동 계산해요.", `<button class="primary" data-do="transaction">＋ 사용내역</button>`)}<div class="tabs">${tabs}</div>${content}`;
 }
 function assetDashboard() {
-  const s = assetSummary(), a = spendingAnalysis();
-  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 월예산 가이드</h3><p>고정비 ${Math.round(a.fixedRate)}% · 변동비 ${Math.round(a.variableRate)}%<br>${a.income ? `수입 기준 권장 변동비 한도는 ${won(a.suggestedVariable)}입니다.` : "수입을 입력하면 권장 변동비 한도를 계산해 드려요."}</p></article></section>
+  const s = assetSummary(), diagnosis = consumptionDiagnosis();
+  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 이번 달 소비 진단</h3><p>${diagnosis.top ? `가장 많이 쓴 항목은 <b>${esc(diagnosis.top[0])}</b> ${won(diagnosis.top[1])}입니다.<br>` : "아직 분석할 지출이 없어요.<br>"}${diagnosis.comparison}</p></article></section>
   <section class="stats">${stat("현금·예금", won(s.liquid), "입력계좌 합계", "₩")}${stat("주식", won(s.stocks), "현재가 기준", "↗")}${stat("부동산", won(s.property), "현재시세 기준", "⌂")}${stat("부채", won(s.debt), "대출 잔액만 반영", "−")}</section>
-  ${spendingRatioPanel(a)}
+  ${spendingCategoryCharts()}
   ${cardPerformance(true)}
   <section class="grid2 space"><article class="panel"><header class="panelHead"><div><h2>최근 가계부</h2><p>수입·지출·카드실적 반영</p></div><button class="textBtn" data-do="transaction">＋ 내역</button></header><div class="panelBody">${transactionRows([...store.data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6))}</div></article><article class="panel"><header class="panelHead"><div><h2>자산관리 요약</h2><p>상세현황 항목 수</p></div></header><div class="panelBody assetCounts">${Object.entries(ASSET_SECTIONS).map(([key, label]) => `<button data-do="assetSection" data-section="${key}"><b>${store.data[key].length}</b><span>${label}</span></button>`).join("")}</div></article></section>`;
 }
-function spendingRatioPanel(a) {
-  const category = (name, amount, rate) => `<div class="ratioAlert ${a.level(rate)}"><div><strong>${name}</strong><span>${a.label(rate)}</span></div><b>${won(amount)} · ${Math.round(rate)}%</b><small>${rate >= 35 ? "전체 지출의 35% 이상이에요. 다음 달 예산을 낮추거나 세부 내역을 확인해 보세요." : rate >= 25 ? "전체 지출의 25% 이상이에요. 남은 기간 사용을 조절해 보세요." : "전체 지출 대비 안정적인 범위예요."}</small></div>`;
-  return `<article class="panel spendingPanel space"><header class="panelHead"><div><h2>고정비 · 변동비 비율 분석</h2><p>이번 달 실제 지출을 기준으로 다음 달 예산을 설계해요</p></div></header><div class="panelBody"><div class="ratioBars"><div><span>고정비 ${Math.round(a.fixedRate)}%</span><i><b style="width:${Math.min(a.fixedRate, 100)}%"></b></i><small>${won(a.fixed)}</small></div><div><span>변동비 ${Math.round(a.variableRate)}%</span><i><b style="width:${Math.min(a.variableRate, 100)}%"></b></i><small>${won(a.variable)}</small></div></div><div class="ratioAlerts">${category("교육비", a.education, a.educationRate)}${category("생활비", a.living, a.livingRate)}</div></div></article>`;
+function spendingCategoryCharts() {
+  return `<section class="expenseCharts space">${expenseDonut("고정비 항목 분석", categoryBreakdown(ledgerMonth, "fixed"), "매달 반복되는 지출과 월 할부금")}${expenseDonut("변동비 항목 분석", categoryBreakdown(ledgerMonth, "variable"), "식비·외식·생활·여행 등 조절 가능한 지출")}</section>`;
+}
+function expenseDonut(title, entries, copy) {
+  const total = entries.reduce((sum, item) => sum + item.amount, 0);
+  if (!entries.length) return `<article class="panel expenseChart"><header class="panelHead"><div><h2>${title}</h2><p>${copy}</p></div></header><div class="panelBody">${empty("◯", "분석할 지출이 아직 없어요.")}</div></article>`;
+  let cursor = 0;
+  const segments = entries.map((item, index) => { const start = cursor; cursor += item.rate; return `${CHART_COLORS[index % CHART_COLORS.length]} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`; }).join(",");
+  const rows = entries.map((item, index) => `<div class="expenseLegendRow"><i style="background:${CHART_COLORS[index % CHART_COLORS.length]}"></i><strong>${index + 1}. ${esc(item.category)}</strong><span>${won(item.amount)}</span><b>${item.rate.toFixed(1)}%</b></div>`).join("");
+  return `<article class="panel expenseChart"><header class="panelHead"><div><h2>${title}</h2><p>${copy}</p></div></header><div class="panelBody expenseChartBody"><div class="donut" style="background:conic-gradient(${segments})"><div><small>합계</small><b>${won(total)}</b></div></div><div class="expenseLegend">${rows}</div></div></article>`;
 }
 function cardPerformance(compact = false) {
   const monthItems = effectiveMonthItems(ledgerMonth).filter(item => item.kind === "expense" && item.performanceIncluded);
@@ -435,7 +460,6 @@ function ledgerView() {
   const totals = monthTotals(ledgerMonth), items = [...totals.items].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월</strong><button data-do="ledgerNext">›</button></div>
   <section class="stats">${stat("수입", won(totals.income), "월 수입 합계", "+")}${stat("지출", won(totals.expense), `사용내역＋할부 ${won(totals.installment)}`, "−")}${stat("고정비", won(totals.fixed), "월 할부금 포함", "▣")}${stat("변동비", won(totals.variable), "이번 달 조절 가능한 지출", "↕")}</section>
-  ${budgetSection(items)}
   <article class="panel space"><header class="panelHead"><div><h2>${ledgerMonth} 가계부</h2><p>고정비·변동비와 카드실적을 함께 기록합니다</p></div><button class="primary" data-do="transaction">＋ 사용내역</button></header><div class="panelBody">${transactionRows(items)}</div></article>
   <div class="space">${monthlyClosing()}</div>`;
 }
