@@ -1,7 +1,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 
 const NAV = [
-  ["home", "홈", "⌂"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
+  ["planner", "오늘의 다이어리", "◷"], ["home", "수집함", "⌂"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
   ["parenting", "도담·소담", "♧"], ["assets", "자산", "₩"], ["travel", "여행", "✈"],
   ["move", "부동산·이사", "⌂"]
 ];
@@ -47,6 +47,7 @@ function seed() {
   return {
     version: 2,
     profile: { name: "은정" },
+    dailyPlans: {},
     tasks: [
       { id: makeId(), title: "8월 점검 계획 정리", category: "work", date: iso(), workType: "br", priority: "high", done: false },
       { id: makeId(), title: "전세금·퇴거대출 일정 확인", category: "move", date: iso(2), priority: "normal", done: false },
@@ -114,6 +115,7 @@ function seed() {
 function normalize(raw = {}) {
   const base = seed();
   const data = { ...base, ...raw, version: 2 };
+  data.dailyPlans = raw.dailyPlans && typeof raw.dailyPlans === "object" && !Array.isArray(raw.dailyPlans) ? raw.dailyPlans : {};
   const arrays = ["tasks", "events", "inbox", "accounts", "cards", "transactions", "budgets", "loans", "insurances", "stocks", "otherAssets", "installments", "properties", "annualPlans", "trips", "moveItems", "growth", "goals"];
   arrays.forEach(key => { data[key] = Array.isArray(raw[key]) ? raw[key] : base[key]; });
   if (!data.cards.length) data.cards = base.cards;
@@ -205,11 +207,11 @@ class Store {
 
 const store = new Store();
 let assetTab = "dashboard", childTab = "overview", travelTab = "plan";
-let calendarCursor = new Date(), ledgerMonth = currentMonth(), annualYear = currentYear, toastTimer;
-const route = () => { const value = location.hash.replace(/^#\//, "").split("/")[0] || "home"; return NAV.some(item => item[0] === value) ? value : "home"; };
+let calendarCursor = new Date(), plannerDate = iso(), ledgerMonth = currentMonth(), annualYear = currentYear, toastTimer;
+const route = () => { const value = location.hash.replace(/^#\//, "").split("/")[0] || "planner"; return NAV.some(item => item[0] === value) ? value : "planner"; };
 
 function nav(mobile = false) {
-  const items = mobile ? [["home", "홈", "⌂"], ["work", "업무", "✓"], ["parenting", "도담소담", "♧"], ["assets", "자산", "₩"], ["annual", "연간", "▦"]] : NAV;
+  const items = mobile ? [["planner", "오늘", "◷"], ["work", "업무", "✓"], ["parenting", "도담소담", "♧"], ["assets", "자산", "₩"], ["annual", "연간", "▦"]] : NAV;
   return items.map(([key, label, icon]) => `<a class="${mobile ? "" : "nav"} ${route() === key ? "active" : ""}" href="#/${key}"><em>${icon}</em>${label}</a>`).join("");
 }
 function pageHead(title, copy, actions = "") {
@@ -241,6 +243,33 @@ function eventRows(items, limit = 99) {
       ${actionButtons(item.time !== undefined ? "events" : "tasks", item.id)}
     </article>`;
   }).join("")}</div>`;
+}
+
+const PLANNER_HOURS = Array.from({ length: 18 }, (_, index) => `${String(index + 6).padStart(2, "0")}:00`);
+function plannerDay(create = false) {
+  if (!store.data.dailyPlans[plannerDate] && create) store.data.dailyPlans[plannerDate] = { focus: "", memo: "", slots: {}, meetings: [], checklist: [] };
+  const saved = store.data.dailyPlans[plannerDate] || {};
+  return { focus: "", memo: "", slots: {}, meetings: [], checklist: [], ...saved, slots: saved.slots || {}, meetings: saved.meetings || [], checklist: saved.checklist || [] };
+}
+function movePlannerDate(offset) {
+  const date = new Date(`${plannerDate}T12:00:00`); date.setDate(date.getDate() + offset); plannerDate = localDateKey(date); render();
+}
+function plannerMiniRows(items, kind) {
+  if (!items.length) return empty(kind === "meetings" ? "☕" : "✓", kind === "meetings" ? "등록된 미팅이 없어요." : "체크할 항목을 추가해 보세요.");
+  return `<div class="plannerMiniRows">${items.map(item => `<article class="plannerMiniRow ${item.done ? "done" : ""}"><button class="plannerCheck ${item.done ? "on" : ""}" data-do="plannerItemToggle" data-list="${kind}" data-id="${item.id}">${item.done ? "✓" : ""}</button><div><strong>${esc(item.text)}</strong><small>${kind === "meetings" ? esc(item.time || "시간 미정") : "체크리스트"}</small></div><button class="plannerDelete" data-do="plannerItemDelete" data-list="${kind}" data-id="${item.id}">×</button></article>`).join("")}</div>`;
+}
+function plannerView() {
+  const day = plannerDay(), date = new Date(`${plannerDate}T12:00:00`), holiday = holidayName(plannerDate);
+  const slotValues = Object.values(day.slots), allItems = [...slotValues.filter(item => item.text), ...day.meetings, ...day.checklist];
+  const done = allItems.filter(item => item.done).length, total = allItems.length, rate = total ? Math.round(done / total * 100) : 0;
+  const timeline = PLANNER_HOURS.map(time => { const slot = day.slots[time] || { text: "", done: false }; return `<div class="plannerSlot ${slot.done ? "done" : ""}"><time>${time}</time><button class="plannerCheck ${slot.done ? "on" : ""}" data-do="plannerSlotToggle" data-time="${time}" aria-label="${time} 완료">${slot.done ? "✓" : ""}</button><input data-planner-field="slot" data-time="${time}" value="${esc(slot.text)}" placeholder="${time} 일정 입력"></div>`; }).join("");
+  return `${pageHead("오늘의 일정관리", "시간별 계획을 세우고 실행한 일을 체크하는 하루 다이어리예요.", `<button class="secondary" data-do="plannerToday">오늘로</button>`)}
+  <section class="plannerTop"><div class="plannerDateNav"><button data-do="plannerPrev">‹</button><label><span>${new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(date)}${holiday ? ` · ${esc(holiday)}` : ""}</span><input type="date" data-planner-field="date" value="${plannerDate}"></label><button data-do="plannerNext">›</button></div><div class="plannerProgress"><span>오늘의 실행률</span><strong>${done}/${total}</strong><div class="progress"><i style="width:${rate}%"></i></div><small>${rate}% 완료</small></div></section>
+  <section class="plannerFocus"><label>오늘 꼭 해낼 한 가지</label><input data-planner-field="focus" value="${esc(day.focus)}" placeholder="오늘의 가장 중요한 목표를 적어 주세요"></section>
+  <section class="plannerLayout"><article class="panel plannerTimeline"><header class="panelHead"><div><h2>TIME PLAN</h2><p>오전 6시부터 밤 11시까지 · 입력 후 다른 곳을 누르면 자동 저장</p></div></header><div class="panelBody">${timeline}</div></article>
+  <div class="plannerSide"><article class="panel"><header class="panelHead"><div><h2>미팅</h2><p>약속·회의·상담 일정</p></div></header><div class="panelBody">${plannerMiniRows(day.meetings, "meetings")}<form class="plannerAddForm" data-planner-list="meetings"><input type="time" name="time"><input name="text" placeholder="미팅 내용" required><button>＋</button></form></div></article>
+  <article class="panel"><header class="panelHead"><div><h2>체크리스트</h2><p>시간을 정하지 않은 오늘 할 일</p></div></header><div class="panelBody">${plannerMiniRows(day.checklist, "checklist")}<form class="plannerAddForm" data-planner-list="checklist"><input name="text" placeholder="체크할 항목" required><button>＋</button></form></div></article>
+  <article class="panel plannerMemo"><header class="panelHead"><div><h2>메모</h2><p>생각·기록·내일 기억할 것</p></div></header><div class="panelBody"><textarea data-planner-field="memo" placeholder="자유롭게 기록해 주세요">${esc(day.memo)}</textarea></div></article></div></section>`;
 }
 
 function homeView() {
@@ -530,7 +559,7 @@ function progressCards(items, kind) {
 
 function render() {
   $("#sideNav").innerHTML = nav(false); $("#bottomNav").innerHTML = nav(true);
-  $("#app").innerHTML = ({ home: homeView, work: workView, annual: annualView, parenting: parentingView, assets: assetsView, travel: travelView, move: moveView }[route()] || homeView)();
+  $("#app").innerHTML = ({ planner: plannerView, home: homeView, work: workView, annual: annualView, parenting: parentingView, assets: assetsView, travel: travelView, move: moveView }[route()] || plannerView)();
   syncUI(); window.scrollTo(0, 0);
 }
 
@@ -691,9 +720,10 @@ function syncModal() {
 }
 function mobileMenuModal() {
   modal("전체메뉴", `<div class="mobileMenuGrid">
+    <button data-do="mobileRoute" data-route="home"><span>⌂</span><strong>수집함</strong><small>생각나는 내용을 빠르게 정리</small></button>
     <button data-do="mobileRoute" data-route="travel"><span>✈</span><strong>여행</strong><small>여행 계획과 기록</small></button>
     <button data-do="mobileRoute" data-route="move"><span>⌂</span><strong>부동산·이사</strong><small>수리·구매·처분 계획</small></button>
-  </div><p class="help space">자주 사용하는 홈·업무·도담소담·자산·연간은 화면 아래 탭에서 바로 이동할 수 있어요.</p>`);
+  </div><p class="help space">오늘의 다이어리·업무·도담소담·자산·연간은 화면 아래 탭에서 바로 이동할 수 있어요.</p>`);
 }
 function syncUI() {
   const online = !!store.user; $("#syncDot")?.classList.toggle("on", online);
@@ -704,6 +734,11 @@ function toast(message) { const el = $("#toast"); el.textContent = message; el.c
 
 document.addEventListener("submit", event => {
   event.preventDefault(); const data = Object.fromEntries(new FormData(event.target).entries()), editId = event.target.dataset.editId;
+  if (event.target.matches(".plannerAddForm")) {
+    const listName = event.target.dataset.plannerList, day = plannerDay(true);
+    day[listName].push({ id: makeId(), text: data.text, time: data.time || "", done: false });
+    store.data.dailyPlans[plannerDate] = day; store.save("오늘의 다이어리에 저장했어요."); render(); return;
+  }
   if (["captureForm", "quickForm"].includes(event.target.id)) { capture(data.text); closeModal(); return; }
   if (event.target.id === "taskForm") upsert(store.data.tasks, { title: data.title, category: data.category, date: data.date, workType: data.workType, priority: data.workType === "important" ? "high" : "normal", memo: data.memo, done: editId ? findItem("tasks", editId)?.done : false }, editId);
   if (event.target.id === "eventForm") upsert(store.data.events, { title: data.title, category: data.category, date: data.date, time: data.time, workType: data.workType, memo: data.memo }, editId);
@@ -750,6 +785,12 @@ document.addEventListener("click", async event => {
   if (action === "quick") { event.preventDefault(); quickModal(); }
   if (action === "mobileMenu") mobileMenuModal();
   if (action === "mobileRoute") { location.hash = `#/${button.dataset.route}`; closeModal(); }
+  if (action === "plannerPrev") movePlannerDate(-1);
+  if (action === "plannerNext") movePlannerDate(1);
+  if (action === "plannerToday") { plannerDate = iso(); render(); }
+  if (action === "plannerSlotToggle") { const day = plannerDay(true), time = button.dataset.time, slot = day.slots[time] || { text: "", done: false }; day.slots[time] = { ...slot, done: !slot.done }; store.data.dailyPlans[plannerDate] = day; store.save(); render(); }
+  if (action === "plannerItemToggle") { const day = plannerDay(true), item = day[button.dataset.list].find(value => value.id === button.dataset.id); if (item) { item.done = !item.done; store.data.dailyPlans[plannerDate] = day; store.save(); render(); } }
+  if (action === "plannerItemDelete") { const day = plannerDay(true); day[button.dataset.list] = day[button.dataset.list].filter(value => value.id !== button.dataset.id); store.data.dailyPlans[plannerDate] = day; store.save("삭제했어요."); render(); }
   if (action === "task") taskModal({}, button.dataset.cat || "work");
   if (action === "event") eventModal({}, button.dataset.cat || "work");
   if (action === "transaction") transactionModal();
@@ -813,9 +854,19 @@ document.addEventListener("click", async event => {
   if (action === "signOut") { await store.signOut(); closeModal(); }
 });
 
+document.addEventListener("change", event => {
+  const fieldName = event.target.dataset.plannerField; if (!fieldName) return;
+  if (fieldName === "date") { plannerDate = event.target.value || iso(); render(); return; }
+  const day = plannerDay(true);
+  if (fieldName === "slot") { const time = event.target.dataset.time, previous = day.slots[time] || { done: false }; day.slots[time] = { ...previous, text: event.target.value }; }
+  if (fieldName === "focus") day.focus = event.target.value;
+  if (fieldName === "memo") day.memo = event.target.value;
+  store.data.dailyPlans[plannerDate] = day; store.save("자동 저장했어요."); render();
+});
+
 $("#backdrop").addEventListener("click", event => { if (event.target === $("#backdrop")) closeModal(); });
 document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
 window.addEventListener("hashchange", render);
 await store.init();
-if (!location.hash) location.hash = "#/home";
+if (!location.hash || location.hash === "#/home") location.hash = "#/planner";
 render();
