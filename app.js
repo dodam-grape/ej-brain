@@ -406,6 +406,67 @@ function consumptionDiagnosis(monthKey = ledgerMonth) {
   const comparison = current.expense === 0 && previous.expense === 0 ? "사용내역을 입력하면 전월과 비교해 드려요." : diff > 0 ? `전월보다 ${won(diff)} 더 사용했어요.` : diff < 0 ? `전월보다 ${won(Math.abs(diff))} 덜 사용했어요.` : "전월과 지출이 같아요.";
   return { top, comparison, current, previous };
 }
+function mergedCategoryBreakdown(monthKey = ledgerMonth) {
+  const merged = new Map();
+  [...categoryBreakdown(monthKey, "fixed"), ...categoryBreakdown(monthKey, "variable")].forEach(item => merged.set(item.category, (merged.get(item.category) || 0) + item.amount));
+  const total = [...merged.values()].reduce((sum, amount) => sum + amount, 0);
+  return [...merged.entries()].map(([category, amount]) => ({ category, amount, rate: total ? amount / total * 100 : 0 })).sort((a, b) => b.amount - a.amount);
+}
+function smartAssetReport(monthKey = ledgerMonth) {
+  const current = monthTotals(monthKey), previous = monthTotals(shiftMonth(monthKey, -1)), categories = mergedCategoryBreakdown(monthKey), assets = assetSummary();
+  const income = current.income, net = current.net, fixedIncomeRate = income ? current.fixed / income * 100 : 0, variableIncomeRate = income ? current.variable / income * 100 : 0;
+  const education = categories.find(item => ["교육", "교육비"].includes(item.category))?.amount || 0, educationRate = income ? education / income * 100 : 0;
+  const installmentRate = income ? current.installment / income * 100 : 0;
+  const monthlyInterest = store.data.loans.reduce((sum, item) => sum + n(item.interestAmount), 0), interestRate = income ? monthlyInterest / income * 100 : 0;
+  const insuranceRegistered = store.data.insurances.reduce((sum, item) => sum + n(item.premium), 0);
+  const insuranceLedger = current.items.filter(item => item.kind === "expense" && item.category === "보험").reduce((sum, item) => sum + n(item.amount), 0);
+  const expenseDiff = current.expense - previous.expense, expenseChangeRate = previous.expense ? expenseDiff / previous.expense * 100 : null;
+  const debtAssetRate = assets.asset ? assets.debt / assets.asset * 100 : null, emergencyMonths = current.expense ? assets.liquid / current.expense : null;
+  const highestRateLoan = [...store.data.loans].sort((a, b) => n(b.rate) - n(a.rate))[0];
+  const incompleteLoans = store.data.loans.filter(item => !n(item.rate) || !n(item.interestAmount));
+  const strengths = [], cautions = [], actions = [];
+  if (!income) cautions.push("월수입이 입력되지 않아 고정비율·저축여력·부담수준을 정확히 판단할 수 없어요.");
+  if (income && net >= income * .2) strengths.push(`수입의 ${Math.round(net / income * 100)}%인 ${won(net)}이 남아 현금흐름이 안정적이에요.`);
+  else if (income && net >= 0) strengths.push(`수입 안에서 지출을 관리해 이번 달 ${won(net)}이 남았어요.`);
+  else if (income) cautions.push(`지출이 수입을 ${won(Math.abs(net))} 초과했어요. 일시적 지출인지 반복되는 구조인지 확인이 필요해요.`);
+  if (income && fixedIncomeRate < 50) strengths.push(`고정비가 수입의 ${fixedIncomeRate.toFixed(1)}%로 앱의 점검 기준 50% 아래예요.`);
+  if (income && fixedIncomeRate >= 60) cautions.push(`고정비가 수입의 ${fixedIncomeRate.toFixed(1)}%예요. 매달 조정하기 어려운 지출 비중이 높아요.`);
+  else if (income && fixedIncomeRate >= 50) cautions.push(`고정비가 수입의 ${fixedIncomeRate.toFixed(1)}%로 절반을 넘었어요.`);
+  if (income && educationRate >= 20) cautions.push(`교육비가 수입의 ${educationRate.toFixed(1)}%인 ${won(education)}예요. 현재 교육계획과 중복되는 비용이 없는지 살펴보세요.`);
+  if (income && installmentRate >= 15) cautions.push(`월 할부금이 수입의 ${installmentRate.toFixed(1)}%예요. 할부 종료 전에는 새 할부를 늘리지 않는 편이 안전해요.`);
+  else if (current.installment > 0) strengths.push(`월 할부금 ${won(current.installment)}과 종료일이 총지출에 반영되고 있어요.`);
+  if (income && interestRate >= 10) cautions.push(`등록된 월 대출이자가 수입의 ${interestRate.toFixed(1)}%인 ${won(monthlyInterest)}예요.`);
+  if (assets.asset > 0 && debtAssetRate !== null && debtAssetRate < 30) strengths.push(`총자산 대비 대출잔액 비중이 ${debtAssetRate.toFixed(1)}%로 앱의 점검 기준 30% 아래예요.`);
+  else if (assets.asset > 0 && debtAssetRate !== null && debtAssetRate >= 50) cautions.push(`총자산 대비 대출잔액 비중이 ${debtAssetRate.toFixed(1)}%예요. 금리가 높은 대출부터 상환순서를 확인해 보세요.`);
+  else if (assets.asset > 0 && debtAssetRate !== null && debtAssetRate >= 30) cautions.push(`총자산 대비 대출잔액 비중이 ${debtAssetRate.toFixed(1)}%예요.`);
+  if (emergencyMonths !== null && emergencyMonths >= 3) strengths.push(`현금·예금으로 현재 지출 약 ${emergencyMonths.toFixed(1)}개월을 감당할 수 있어요.`);
+  else if (emergencyMonths !== null && emergencyMonths < 3) cautions.push(`현금·예금이 현재 월지출의 약 ${emergencyMonths.toFixed(1)}개월치예요. 최소 3개월치 비상자금을 우선 확인해 보세요.`);
+  if (incompleteLoans.length) cautions.push(`대출 ${incompleteLoans.length}건의 금리 또는 월이자가 비어 있어 대출부담 분석이 일부 제한돼요.`);
+  if (expenseChangeRate !== null && expenseChangeRate <= -10) strengths.push(`총지출이 전월보다 ${Math.abs(expenseChangeRate).toFixed(1)}% 감소했어요.`);
+  if (expenseChangeRate !== null && expenseChangeRate >= 20) cautions.push(`총지출이 전월보다 ${expenseChangeRate.toFixed(1)}% 증가했어요. ${categories[0] ? `${categories[0].category} 지출부터` : "큰 지출부터"} 확인해 보세요.`);
+  if (insuranceRegistered && Math.abs(insuranceRegistered - insuranceLedger) > 1000) cautions.push(`보험현황의 월 보험료는 ${won(insuranceRegistered)}, 이번 달 가계부 보험 지출은 ${won(insuranceLedger)}예요. 누락이나 중복 여부를 확인해 주세요.`);
+  if (categories[0]) strengths.push(`이번 달 가장 큰 지출은 ${categories[0].category} ${won(categories[0].amount)}로 총지출의 ${categories[0].rate.toFixed(1)}%예요. 지출 중심이 명확하게 잡혔어요.`);
+  if (!income) actions.push("가계부에 이번 달 월수입을 입력해 분석 정확도를 높이기");
+  if (net < 0 && categories.find(item => item.category !== "할부")) { const target = categories.find(item => item.category !== "할부"); actions.push(`${target.category} 지출을 우선 10% 줄여 약 ${won(target.amount * .1)} 확보하기`); }
+  if (fixedIncomeRate >= 50) { const largestFixed = categoryBreakdown(monthKey, "fixed")[0]; actions.push(largestFixed ? `가장 큰 고정비인 ${largestFixed.category} ${won(largestFixed.amount)}의 유지 필요성 점검하기` : "고정비 항목을 한 번씩 점검하기"); }
+  if (educationRate >= 20) actions.push("교육비를 아이별·서비스별로 나누어 중복 결제와 이용률 확인하기");
+  if (current.installment > 0) actions.push(`할부 종료일까지 월 ${won(current.installment)}을 고정지출로 먼저 확보하기`);
+  if (emergencyMonths !== null && emergencyMonths < 3) actions.push(`현금·예금을 현재 지출 3개월치인 ${won(current.expense * 3)}까지 우선 확보하기`);
+  if (highestRateLoan && n(highestRateLoan.rate)) actions.push(`금리가 가장 높은 ${highestRateLoan.name} ${pct(highestRateLoan.rate)}를 우선상환 후보로 점검하기`);
+  if (incompleteLoans.length) actions.push("대출현황의 금리와 월이자를 모두 입력해 분석 완성하기");
+  if (insuranceRegistered && Math.abs(insuranceRegistered - insuranceLedger) > 1000) actions.push("보험현황과 가계부 보험료 금액을 일치시키기");
+  if (income && net >= 0) actions.push(`이번 달 잔액 ${won(net)}의 저축·대출상환·이월 용도를 정하기`);
+  if (!actions.length) actions.push("현재 입력을 유지하고 다음 달 전월 비교 확인하기");
+  const dataPoints = current.items.filter(item => item.kind === "expense").length + store.data.accounts.length + store.data.stocks.length + store.data.loans.length + store.data.insurances.length + store.data.installments.length + store.data.properties.length;
+  const tone = cautions.some(item => /초과|60%|20% 증가|10%/.test(item)) ? "danger" : cautions.length ? "warn" : dataPoints ? "good" : "empty";
+  const headline = !dataPoints && !income ? "분석할 자산·가계부 자료를 먼저 등록해 주세요." : tone === "danger" ? "이번 달은 현금흐름 점검이 필요해요." : tone === "warn" ? "큰 문제는 없지만 확인할 항목이 있어요." : "등록된 기준으로 안정적으로 관리되고 있어요.";
+  return { headline, tone, strengths: strengths.slice(0, 4), cautions: cautions.slice(0, 4), actions: [...new Set(actions)].slice(0, 3), dataPoints, current, fixedIncomeRate, variableIncomeRate, educationRate, monthlyInterest };
+}
+function smartAssetPanel() {
+  const report = smartAssetReport();
+  const list = (items, emptyText) => items.length ? `<ul>${items.map(item => `<li>${esc(item)}</li>`).join("")}</ul>` : `<p class="aiEmpty">${emptyText}</p>`;
+  return `<article class="panel aiAssetPanel ${report.tone}"><header class="panelHead"><div><small class="aiBadge">AI · 기기 내 자동분석</small><h2>은정 Brain 자산진단</h2><p>${ledgerMonth} 등록자료 ${report.dataPoints}건을 생활비 관리 기준으로 분석했어요</p></div><button class="secondary" data-do="refreshAssetAnalysis">↻ 다시 분석</button></header><div class="panelBody"><div class="aiHeadline"><span>✦</span><div><small>한눈에 보는 진단</small><strong>${report.headline}</strong></div></div><div class="aiReportGrid"><section><h3>잘 관리되는 부분</h3>${list(report.strengths, "자료가 쌓이면 잘 관리되는 부분을 찾아드려요.")}</section><section><h3>주의해서 볼 부분</h3>${list(report.cautions, "현재 등록자료에서는 특별한 주의 신호가 없어요.")}</section><section class="aiActions"><h3>다음 행동 3가지</h3>${list(report.actions, "다음 달에도 같은 방식으로 기록해 주세요.")}</section></div><p class="aiDisclaimer">금융상품 추천이 아닌, 직접 입력한 자료를 정해진 생활비 관리 기준으로 해석한 참고용 자동분석입니다.</p></div></article>`;
+}
 function assetsView() {
   const tabs = [["dashboard", "자산 대시보드"], ["ledger", "월별 가계부"], ["cards", "카드 실적"], ["manage", "자산관리"]]
     .map(([key, label]) => `<button class="${assetTab === key ? "on" : ""}" data-do="assetTab" data-tab="${key}">${label}</button>`).join("");
@@ -414,8 +475,9 @@ function assetsView() {
 }
 function assetDashboard() {
   const s = assetSummary(), diagnosis = consumptionDiagnosis();
-  return `<section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 이번 달 소비 진단</h3><p>${diagnosis.top ? `가장 많이 쓴 항목은 <b>${esc(diagnosis.top[0])}</b> ${won(diagnosis.top[1])}입니다.<br>` : "아직 분석할 지출이 없어요.<br>"}${diagnosis.comparison}</p></article></section>
+  return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월 자산분석</strong><button data-do="ledgerNext">›</button></div><section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 이번 달 소비 진단</h3><p>${diagnosis.top ? `가장 많이 쓴 항목은 <b>${esc(diagnosis.top[0])}</b> ${won(diagnosis.top[1])}입니다.<br>` : "아직 분석할 지출이 없어요.<br>"}${diagnosis.comparison}</p></article></section>
   <section class="stats">${stat("현금·예금", won(s.liquid), "입력계좌 합계", "₩")}${stat("주식", won(s.stocks), "현재가 기준", "↗")}${stat("부동산", won(s.property), "현재시세 기준", "⌂")}${stat("부채", won(s.debt), "대출 잔액만 반영", "−")}</section>
+  <div class="space">${smartAssetPanel()}</div>
   ${spendingCategoryCharts()}
   ${cardPerformance(true)}
   <section class="grid2 space"><article class="panel"><header class="panelHead"><div><h2>최근 가계부</h2><p>수입·지출·카드실적 반영</p></div><button class="textBtn" data-do="transaction">＋ 내역</button></header><div class="panelBody">${transactionRows([...store.data.transactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6))}</div></article><article class="panel"><header class="panelHead"><div><h2>자산관리 요약</h2><p>상세현황 항목 수</p></div></header><div class="panelBody assetCounts">${Object.entries(ASSET_SECTIONS).map(([key, label]) => `<button data-do="assetSection" data-section="${key}"><b>${store.data[key].length}</b><span>${label}</span></button>`).join("")}</div></article></section>`;
@@ -785,6 +847,7 @@ document.addEventListener("click", async event => {
   if (action === "quick") { event.preventDefault(); quickModal(); }
   if (action === "mobileMenu") mobileMenuModal();
   if (action === "mobileRoute") { location.hash = `#/${button.dataset.route}`; closeModal(); }
+  if (action === "refreshAssetAnalysis") { toast(`${ledgerMonth} 자료를 다시 분석했어요.`); render(); }
   if (action === "plannerPrev") movePlannerDate(-1);
   if (action === "plannerNext") movePlannerDate(1);
   if (action === "plannerToday") { plannerDate = iso(); render(); }
