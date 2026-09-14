@@ -1,7 +1,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 
 const NAV = [
-  ["planner", "오늘의 다이어리", "◷"], ["home", "수집함", "⌂"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
+  ["planner", "오늘의 다이어리", "◷"], ["home", "메모 기록장", "▤"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
   ["parenting", "도담·소담", "♧"], ["assets", "자산", "₩"], ["travel", "여행", "✈"],
   ["move", "부동산·이사", "⌂"]
 ];
@@ -9,6 +9,10 @@ const LABEL = Object.fromEntries(NAV.map(([key, label]) => [key, label]));
 const WORK_TYPES = [["br", "BR"], ["dd", "DD"], ["important", "중요"], ["normal", "보통"]];
 const CHILD_TYPES = [["dodam", "도담"], ["sodam", "소담"], ["important", "중요"], ["normal", "보통"]];
 const PLAN_ROWS = [["work", "업무"], ["family", "가족"], ["dodam", "도담"], ["sodam", "소담"], ["assets", "자산"]];
+const MEMO_CATEGORIES = [
+  ["buy", "사야할 것", "🛒"], ["company", "회사", "💼"], ["housework", "집안일", "🏠"], ["move", "이사", "📦"],
+  ["dodam", "도담", "📘"], ["sodam", "소담", "🌼"], ["eunjeong", "은정", "✦"], ["donghoon", "동훈", "♟"]
+];
 const TRANSACTION_CATEGORIES = ["식비", "외식·배달", "생활비", "생활용품", "교육", "주거", "보험", "교통", "의료", "여행", "쇼핑", "기타", "급여"];
 const BUDGET_CATEGORIES = TRANSACTION_CATEGORIES.filter(category => category !== "급여");
 const FIXED_HOLIDAYS = {
@@ -272,17 +276,29 @@ function plannerView() {
   <article class="panel plannerMemo"><header class="panelHead"><div><h2>메모</h2><p>생각·기록·내일 기억할 것</p></div></header><div class="panelBody"><textarea data-planner-field="memo" placeholder="자유롭게 기록해 주세요">${esc(day.memo)}</textarea></div></article></div></section>`;
 }
 
+function memoCategory(item = {}) {
+  if (MEMO_CATEGORIES.some(([key]) => key === item.memoCategory)) return item.memoCategory;
+  const text = `${item.text || ""} ${item.title || ""}`;
+  if (/사야|구매|장보기|살 것|살것/.test(text)) return "buy";
+  if (/소담/.test(text)) return "sodam";
+  if (/도담|학교|학원|숙제|줄넘기/.test(text)) return "dodam";
+  if (/이사|수리|샤시|도배|장판|전세|재건축|가구/.test(text) || item.category === "move") return "move";
+  if (/동훈|남편/.test(text)) return "donghoon";
+  if (/집|청소|빨래|정리|식사|반찬/.test(text)) return "housework";
+  if (item.category === "work") return "company";
+  return "eunjeong";
+}
+function memoCards(items) {
+  if (!items.length) return `<div class="memoEmpty">아직 메모가 없어요.</div>`;
+  return items.map(item => `<article class="memoCard"><p>${esc(item.text || item.title || "")}</p><footer><small>${item.createdAt ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric" }).format(new Date(item.createdAt)) : "기록"}</small>${actionButtons("inbox", item.id)}</footer></article>`).join("");
+}
 function homeView() {
-  const open = store.data.tasks.filter(item => !item.done && item.category !== "work"), todayCount = open.filter(item => item.date === iso()).length;
-  const upcomingWorkItems = [
-    ...store.data.events.filter(item => item.category === "work" && item.date >= iso()),
-    ...store.data.tasks.filter(item => item.category === "work" && !item.done && item.date >= iso())
-  ];
-  const cardTotal = store.data.transactions.filter(item => item.date.startsWith(currentMonth()) && item.performanceIncluded).reduce((sum, item) => sum + n(item.amount), 0);
-  return `${pageHead(`좋은 아침이에요, ${esc(store.data.profile.name)}님`, "오늘 해야 할 것과 가족의 흐름을 가볍게 정리해요.")}
-  <section class="hero"><article class="capture"><p class="kicker">BRAIN INBOX</p><h2>생각나는 대로 적어 주세요.</h2><p>업무·육아·자산·여행·이사 메모를 내용에 맞게 분류해요.</p><form id="captureForm"><input name="text" placeholder="예: 금요일 이삿짐 견적 전화하기" required><button class="primary">Brain에 저장</button></form></article><article class="quote"><b>“</b><p>머릿속에서 꺼내 놓으면,<br>오늘은 조금 더 가벼워져요.</p><small>은정 Brain · 오늘의 한마디</small></article></section>
-  <section class="stats">${stat("오늘 할 일", `${todayCount}개`, `${open.length}개 남아 있어요`, "✓")}${stat("다가오는 업무일정", `${upcomingWorkItems.length}개`, "업무달력에서 가져옴", "◷")}${stat("카드 인정실적", won(cardTotal), "이번 달 합계", "₩")}${stat("여행 계획", `${store.data.trips.filter(t => t.type === "plan").length}개`, "준비 중인 여행", "✈")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>지금 해야 할 일</h2><p>업무달력과 분리된 할 일 목록입니다</p></div><button class="textBtn" data-do="task" data-cat="parenting">할 일 추가</button></header><div class="panelBody">${taskRows([...open].sort((a, b) => (a.date || "").localeCompare(b.date || "")), 6)}</div></article><article class="panel"><header class="panelHead"><div><h2>다가오는 일정</h2><p>기존 자료를 포함한 업무달력의 가까운 일정입니다</p></div><button class="textBtn" data-do="event" data-cat="work">업무 일정 추가</button></header><div class="panelBody">${eventRows(upcomingWorkItems, 5)}</div></article></section>`;
+  return `${pageHead("메모 기록장", "사야 할 것부터 가족별 기록까지, 머릿속 메모를 여덟 칸에 나누어 한눈에 관리해요.", `<button class="primary" data-do="memoItem" data-cat="buy">＋ 새 메모</button>`)}
+  <div class="memoBoardHint"><span>옆으로 밀어 모든 기록 보기</span><b>총 ${store.data.inbox.length}개</b></div>
+  <section class="memoBoard">${MEMO_CATEGORIES.map(([key, label, icon]) => {
+    const items = store.data.inbox.filter(item => memoCategory(item) === key);
+    return `<article class="memoColumn memo-${key}"><header><span>${icon}</span><div><h2>${label}</h2><small>${items.length}개 기록</small></div><button data-do="memoItem" data-cat="${key}" aria-label="${label} 메모 추가">＋</button></header><form class="memoQuickForm" data-memo-category="${key}"><input name="text" placeholder="메모 입력" required><button aria-label="저장">↵</button></form><div class="memoList">${memoCards(items)}</div></article>`;
+  }).join("")}</section>`;
 }
 
 function workView() {
@@ -337,7 +353,7 @@ function childRows(items, child, section) {
   return `<div class="rows">${items.map(item => {
     const title = section === "routines" ? `${item.time} · ${item.title}` : section === "annual" ? `${item.year} ${item.period} · ${item.title}` : `${item.area} · ${item.target}`;
     const sub = section === "routines" ? item.days : section === "growth" ? `진행 ${item.progress}%` : item.memo;
-    return `<article class="row"><div class="rowCopy"><strong>${esc(title)}</strong><small>${esc(sub || item.memo || "")}</small></div>${actionButtons("childItem", item.id, `data-child="${child}" data-section="${section}"`)}</article>`;
+    return `<article class="row childRoadmapRow"><button class="childRoadmapOpen" data-do="edit" data-kind="childItem" data-id="${item.id}" data-child="${child}" data-section="${section}"><strong>${esc(title)}</strong><small>${esc(sub || item.memo || "")}</small></button>${actionButtons("childItem", item.id, `data-child="${child}" data-section="${section}"`)}</article>`;
   }).join("")}</div>`;
 }
 
@@ -654,7 +670,7 @@ function field(name, label, type = "text", value = "", options = {}) {
 }
 function form(formId, fields, edit = {}) {
   const deleteButton = edit.id && edit.deleteKind
-    ? `<button type="button" class="danger modalDelete" data-do="delete" data-kind="${edit.deleteKind}" data-id="${edit.id}" data-close="yes">삭제</button>`
+    ? `<button type="button" class="danger modalDelete" data-do="delete" data-kind="${edit.deleteKind}" data-id="${edit.id}" data-close="yes" ${edit.extra || ""}>삭제</button>`
     : "";
   return `<form id="${formId}" data-edit-id="${edit.id || ""}" ${edit.extra || ""}><div class="formGrid">${fields}</div><div class="buttons">${deleteButton}<button type="button" class="ghost" data-do="close">취소</button><button class="primary">저장</button></div></form>`;
 }
@@ -729,7 +745,14 @@ function childModal(child, section, item = {}) {
   if (section === "routines") fields = field("time", "시간", "time", item.time || "07:00") + field("days", "요일", "text", item.days || "매일") + field("title", "루틴", "text", item.title || "", { full: true }) + field("memo", "메모", "textarea", item.memo || "", { full: true, required: false });
   if (section === "annual") fields = field("year", "연도", "number", item.year || currentYear) + field("period", "기간", "select", item.period || "연간", { items: [["연간", "연간"], ["상반기", "상반기"], ["하반기", "하반기"], ["1학기", "1학기"], ["2학기", "2학기"]] }) + field("title", "로드맵", "text", item.title || "", { full: true }) + field("memo", "메모", "textarea", item.memo || "", { full: true, required: false });
   if (section === "growth") fields = field("area", "영역", "select", item.area || "학습", { items: ["학습", "생활", "정서", "운동", "사회성", "건강"].map(v => [v, v]) }) + field("progress", "진행률", "number", item.progress || 0, { min: 0 }) + field("target", "성장 목표", "text", item.target || "", { full: true }) + field("memo", "메모", "textarea", item.memo || "", { full: true, required: false });
-  modal(`${child === "dodam" ? "도담" : "소담"} ${section === "routines" ? "루틴" : section === "annual" ? "연간로드맵" : "성장로드맵"} ${item.id ? "수정" : "추가"}`, form("childForm", fields, { id: item.id, extra: `data-child="${child}" data-section="${section}"` }));
+  modal(`${child === "dodam" ? "도담" : "소담"} ${section === "routines" ? "루틴" : section === "annual" ? "연간로드맵" : "성장로드맵"} ${item.id ? "수정" : "추가"}`, form("childForm", fields, { id: item.id, deleteKind: "childItem", extra: `data-child="${child}" data-section="${section}"` }));
+}
+function memoModal(item = {}, category = "buy") {
+  modal(item.id ? "메모 수정" : "새 메모", form("memoForm",
+    field("memoCategory", "분류", "select", item.id ? item.memoCategory || memoCategory(item) : category, { items: MEMO_CATEGORIES.map(([key, label]) => [key, label]) }) +
+    field("text", "메모", "textarea", item.text || item.title || "", { full: true }),
+    { id: item.id, deleteKind: "inbox" }
+  ));
 }
 function tripModal(item = {}, type = "plan") {
   modal(item.id ? "여행 수정" : "여행 추가", form("tripForm",
@@ -774,7 +797,7 @@ function simpleModal(section, item = {}) {
   modal(item.id ? "항목 수정" : "항목 추가", form("simpleForm", fields, { id: item.id, extra: `data-section="${section}"` }));
 }
 function quickModal() {
-  modal("Brain 빠른 수집", `<form id="quickForm"><div class="field"><label>생각나는 내용을 그대로 적어 주세요</label><textarea name="text" required></textarea></div><div class="buttons"><button type="button" class="ghost" data-do="close">취소</button><button class="primary">저장</button></div></form>`);
+  memoModal();
 }
 function syncModal() {
   const configured = !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId), online = !!store.user;
@@ -782,7 +805,7 @@ function syncModal() {
 }
 function mobileMenuModal() {
   modal("전체메뉴", `<div class="mobileMenuGrid">
-    <button data-do="mobileRoute" data-route="home"><span>⌂</span><strong>수집함</strong><small>생각나는 내용을 빠르게 정리</small></button>
+    <button data-do="mobileRoute" data-route="home"><span>▤</span><strong>메모 기록장</strong><small>8개 분류를 한눈에 관리</small></button>
     <button data-do="mobileRoute" data-route="travel"><span>✈</span><strong>여행</strong><small>여행 계획과 기록</small></button>
     <button data-do="mobileRoute" data-route="move"><span>⌂</span><strong>부동산·이사</strong><small>수리·구매·처분 계획</small></button>
   </div><p class="help space">오늘의 다이어리·업무·도담소담·자산·연간은 화면 아래 탭에서 바로 이동할 수 있어요.</p>`);
@@ -796,12 +819,17 @@ function toast(message) { const el = $("#toast"); el.textContent = message; el.c
 
 document.addEventListener("submit", event => {
   event.preventDefault(); const data = Object.fromEntries(new FormData(event.target).entries()), editId = event.target.dataset.editId;
+  if (event.target.matches(".memoQuickForm")) {
+    store.data.inbox.unshift({ id: makeId(), text: data.text, memoCategory: event.target.dataset.memoCategory, createdAt: new Date().toISOString() });
+    store.save("메모를 저장했어요."); render(); return;
+  }
   if (event.target.matches(".plannerAddForm")) {
     const listName = event.target.dataset.plannerList, day = plannerDay(true);
     day[listName].push({ id: makeId(), text: data.text, time: data.time || "", done: false });
     store.data.dailyPlans[plannerDate] = day; store.save("오늘의 다이어리에 저장했어요."); render(); return;
   }
-  if (["captureForm", "quickForm"].includes(event.target.id)) { capture(data.text); closeModal(); return; }
+  if (event.target.id === "memoForm") upsert(store.data.inbox, { text: data.text, memoCategory: data.memoCategory, createdAt: editId ? findItem("inbox", editId)?.createdAt || new Date().toISOString() : new Date().toISOString() }, editId);
+  if (event.target.id === "captureForm") { capture(data.text); closeModal(); return; }
   if (event.target.id === "taskForm") upsert(store.data.tasks, { title: data.title, category: data.category, date: data.date, workType: data.workType, priority: data.workType === "important" ? "high" : "normal", memo: data.memo, done: editId ? findItem("tasks", editId)?.done : false }, editId);
   if (event.target.id === "eventForm") upsert(store.data.events, { title: data.title, category: data.category, date: data.date, time: data.time, workType: data.workType, memo: data.memo }, editId);
   if (event.target.id === "transactionForm") {
@@ -845,6 +873,7 @@ document.addEventListener("click", async event => {
   if (action === "close") closeModal();
   if (action === "saveAll") store.save("전체 내용을 저장·동기화했어요.");
   if (action === "quick") { event.preventDefault(); quickModal(); }
+  if (action === "memoItem") memoModal({}, button.dataset.cat || "buy");
   if (action === "mobileMenu") mobileMenuModal();
   if (action === "mobileRoute") { location.hash = `#/${button.dataset.route}`; closeModal(); }
   if (action === "refreshAssetAnalysis") { toast(`${ledgerMonth} 자료를 다시 분석했어요.`); render(); }
@@ -874,6 +903,7 @@ document.addEventListener("click", async event => {
     else if (kind === "budgets") budgetModal(item);
     else if (kind === "annualPlans") annualModal(item);
     else if (kind === "childItem") childModal(button.dataset.child, button.dataset.section, item);
+    else if (kind === "inbox") memoModal(item, memoCategory(item));
     else if (kind === "trips") tripModal(item, item.type);
     else if (kind === "moveItems") moveModal(item);
     else if (kind === "cards") cardModal(item);
@@ -882,7 +912,7 @@ document.addEventListener("click", async event => {
   }
   if (action === "delete") {
     const kind = button.dataset.kind, item = findItem(kind, button.dataset.id, button.dataset.child, button.dataset.section); if (!item) return;
-    if (!confirm(`"${item.title || item.name || item.item || item.category || "이 항목"}"을(를) 삭제할까요?`)) return;
+    if (!confirm(`"${item.title || item.text || item.name || item.item || item.category || "이 항목"}"을(를) 삭제할까요?`)) return;
     if (kind === "childItem") store.data.childData[button.dataset.child][button.dataset.section] = store.data.childData[button.dataset.child][button.dataset.section].filter(value => value.id !== button.dataset.id);
     else store.data[kind] = store.data[kind].filter(value => value.id !== button.dataset.id);
     store.save("삭제했어요.");
