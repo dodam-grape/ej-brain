@@ -1,9 +1,8 @@
 import { firebaseConfig } from "./firebase-config.js";
 
 const NAV = [
-  ["planner", "오늘의 다이어리", "◷"], ["home", "메모 기록장", "▤"], ["work", "업무", "✓"], ["annual", "연간계획", "▦"],
-  ["parenting", "도담·소담", "♧"], ["assets", "자산", "₩"], ["travel", "여행", "✈"],
-  ["move", "부동산·이사", "⌂"]
+ ["planner","오늘","01"], ["home","메모","02"], ["assets","자산","03"],
+ ["annual","연간","04"], ["move","이사","05"], ["travel","여행","06"]
 ];
 const LABEL = Object.fromEntries(NAV.map(([key, label]) => [key, label]));
 const WORK_TYPES = [["br", "BR"], ["dd", "DD"], ["important", "중요"], ["normal", "보통"]];
@@ -130,7 +129,7 @@ function normalize(raw = {}) {
   data.transactions.filter(item => item.kind === "expense" && item.expenseType === "fixed").sort((a, b) => a.date.localeCompare(b.date)).forEach(item => {
     const fingerprint = [item.title, item.category, item.card, String(item.date || "").slice(8)].join("|");
     if (!fixedSources.has(fingerprint)) fixedSources.set(fingerprint, item.recurringSourceId || item.id);
-    item.recurringSourceId = fixedSources.get(fingerprint);
+    item.recurringSourceId = item.recurringSourceId || fixedSources.get(fingerprint);
     item.recurringMonthly = true;
   });
   data.installments = data.installments.map(item => ({ monthlyPayment: n(item.monthlyPayment) || (n(item.months) ? Math.round(n(item.balance) / n(item.months)) : 0), ...item }));
@@ -198,7 +197,7 @@ class Store {
           else await fire.setDoc(ref, { state: this.data, updatedAt: fire.serverTimestamp() });
           this.local();
           this.unsubscribe = fire.onSnapshot(ref, next => {
-            if (next.exists() && this.pendingWrites === 0) { this.data = normalize(next.data().state); this.local(); render(); }
+            if (next.exists() && this.pendingWrites === 0 && JSON.stringify(next.data().state) !== JSON.stringify(this.data)) { this.data = normalize(next.data().state); this.local(); if (!document.activeElement?.matches("input,textarea,select")) render(); }
           });
         }
         render(); syncUI();
@@ -210,12 +209,12 @@ class Store {
 }
 
 const store = new Store();
-let assetTab = "dashboard", childTab = "overview", travelTab = "plan";
+let assetTab = "variable", childTab = "overview", travelTab = "plan";
 let calendarCursor = new Date(), plannerDate = iso(), ledgerMonth = currentMonth(), annualYear = currentYear, toastTimer;
 const route = () => { const value = location.hash.replace(/^#\//, "").split("/")[0] || "planner"; return NAV.some(item => item[0] === value) ? value : "planner"; };
 
 function nav(mobile = false) {
-  const items = mobile ? [["planner", "오늘", "◷"], ["work", "업무", "✓"], ["parenting", "도담소담", "♧"], ["assets", "자산", "₩"], ["annual", "연간", "▦"]] : NAV;
+  const items = mobile ? NAV.slice(0, 5) : NAV;
   return items.map(([key, label, icon]) => `<a class="${mobile ? "" : "nav"} ${route() === key ? "active" : ""}" href="#/${key}"><em>${icon}</em>${label}</a>`).join("");
 }
 function pageHead(title, copy, actions = "") {
@@ -263,17 +262,13 @@ function plannerMiniRows(items, kind) {
   return `<div class="plannerMiniRows">${items.map(item => `<article class="plannerMiniRow ${item.done ? "done" : ""}"><button class="plannerCheck ${item.done ? "on" : ""}" data-do="plannerItemToggle" data-list="${kind}" data-id="${item.id}">${item.done ? "✓" : ""}</button><div><strong>${esc(item.text)}</strong><small>${kind === "meetings" ? esc(item.time || "시간 미정") : "체크리스트"}</small></div><button class="plannerDelete" data-do="plannerItemDelete" data-list="${kind}" data-id="${item.id}">×</button></article>`).join("")}</div>`;
 }
 function plannerView() {
-  const day = plannerDay(), date = new Date(`${plannerDate}T12:00:00`), holiday = holidayName(plannerDate);
-  const slotValues = Object.values(day.slots), allItems = [...slotValues.filter(item => item.text), ...day.meetings, ...day.checklist];
-  const done = allItems.filter(item => item.done).length, total = allItems.length, rate = total ? Math.round(done / total * 100) : 0;
-  const timeline = PLANNER_HOURS.map(time => { const slot = day.slots[time] || { text: "", done: false }; return `<div class="plannerSlot ${slot.done ? "done" : ""}"><time>${time}</time><button class="plannerCheck ${slot.done ? "on" : ""}" data-do="plannerSlotToggle" data-time="${time}" aria-label="${time} 완료">${slot.done ? "✓" : ""}</button><input data-planner-field="slot" data-time="${time}" value="${esc(slot.text)}" placeholder="${time} 일정 입력"></div>`; }).join("");
-  return `${pageHead("오늘의 일정관리", "시간별 계획을 세우고 실행한 일을 체크하는 하루 다이어리예요.", `<button class="secondary" data-do="plannerToday">오늘로</button>`)}
-  <section class="plannerTop"><div class="plannerDateNav"><button data-do="plannerPrev">‹</button><label><span>${new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(date)}${holiday ? ` · ${esc(holiday)}` : ""}</span><input type="date" data-planner-field="date" value="${plannerDate}"></label><button data-do="plannerNext">›</button></div><div class="plannerProgress"><span>오늘의 실행률</span><strong>${done}/${total}</strong><div class="progress"><i style="width:${rate}%"></i></div><small>${rate}% 완료</small></div></section>
-  <section class="plannerFocus"><label>오늘 꼭 해낼 한 가지</label><input data-planner-field="focus" value="${esc(day.focus)}" placeholder="오늘의 가장 중요한 목표를 적어 주세요"></section>
-  <section class="plannerLayout"><article class="panel plannerTimeline"><header class="panelHead"><div><h2>TIME PLAN</h2><p>오전 6시부터 밤 11시까지 · 입력 후 다른 곳을 누르면 자동 저장</p></div></header><div class="panelBody">${timeline}</div></article>
-  <div class="plannerSide"><article class="panel"><header class="panelHead"><div><h2>미팅</h2><p>약속·회의·상담 일정</p></div></header><div class="panelBody">${plannerMiniRows(day.meetings, "meetings")}<form class="plannerAddForm" data-planner-list="meetings"><input type="time" name="time"><input name="text" placeholder="미팅 내용" required><button>＋</button></form></div></article>
-  <article class="panel"><header class="panelHead"><div><h2>체크리스트</h2><p>시간을 정하지 않은 오늘 할 일</p></div></header><div class="panelBody">${plannerMiniRows(day.checklist, "checklist")}<form class="plannerAddForm" data-planner-list="checklist"><input name="text" placeholder="체크할 항목" required><button>＋</button></form></div></article>
-  <article class="panel plannerMemo"><header class="panelHead"><div><h2>메모</h2><p>생각·기록·내일 기억할 것</p></div></header><div class="panelBody"><textarea data-planner-field="memo" placeholder="자유롭게 기록해 주세요">${esc(day.memo)}</textarea></div></article></div></section>`;
+ const day = plannerDay();
+ const timeline = PLANNER_HOURS.map(time => { const slot = day.slots[time] || {}; return `<div class="plannerSlot ${slot.done ? "done" : ""}"><time>${time}</time><button class="plannerCheck ${slot.done ? "on" : ""}" data-do="plannerSlotToggle" data-time="${time}" aria-label="${time} 완료">${slot.done ? "✓" : ""}</button><input data-planner-field="slot" data-time="${time}" value="${esc(slot.text || "")}" placeholder="이 시간에 할 일"></div>`; }).join("");
+ return `${pageHead("오늘의 일정", "하루를 차분히 계획하고, 마친 일을 체크해요.", '<a class="secondary travelLink" href="#/travel">여행 기록</a>')}
+ <section class="plannerDateNav"><button data-do="plannerPrev" aria-label="전날">‹</button><label><span>${plannerDate}</span><input type="date" data-planner-field="date" value="${plannerDate}"></label><button data-do="plannerNext" aria-label="다음날">›</button></section>
+ <section class="plannerFocus space"><label>오늘의 가장 중요한 일</label><input data-planner-field="focus" value="${esc(day.focus)}" placeholder="오늘 꼭 해낼 한 가지"></section>
+ <article class="panel plannerTimeline space"><header class="panelHead"><div><h2>TIME PLAN</h2><p>06:00 — 23:00 · 입력 내용은 이 기기에 즉시 보관돼요</p></div><button class="textBtn" data-do="plannerToday">오늘로</button></header><div class="panelBody">${timeline}</div></article>
+ <div class="plannerSave"><span>입력 후 저장하면 연결된 계정에도 동기화를 요청해요.</span><button class="primary" data-do="saveAll">오늘 일정 저장</button></div>`;
 }
 
 function memoCategory(item = {}) {
@@ -294,10 +289,10 @@ function memoCards(items) {
 }
 function homeView() {
   return `${pageHead("메모 기록장", "사야 할 것부터 가족별 기록까지, 머릿속 메모를 여덟 칸에 나누어 한눈에 관리해요.", `<button class="primary" data-do="memoItem" data-cat="buy">＋ 새 메모</button>`)}
-  <div class="memoBoardHint"><span>옆으로 밀어 모든 기록 보기</span><b>총 ${store.data.inbox.length}개</b></div>
+  <div class="memoBoardHint"><span>카테고리별 기록 · 모바일에서는 아래로 내려보세요</span><b>총 ${store.data.inbox.length}개</b></div>
   <section class="memoBoard">${MEMO_CATEGORIES.map(([key, label, icon]) => {
     const items = store.data.inbox.filter(item => memoCategory(item) === key);
-    return `<article class="memoColumn memo-${key}"><header><span>${icon}</span><div><h2>${label}</h2><small>${items.length}개 기록</small></div><button data-do="memoItem" data-cat="${key}" aria-label="${label} 메모 추가">＋</button></header><form class="memoQuickForm" data-memo-category="${key}"><input name="text" placeholder="메모 입력" required><button aria-label="저장">↵</button></form><div class="memoList">${memoCards(items)}</div></article>`;
+    return `<article class="memoColumn memo-${key}"><header><span class="memoMonogram">${label.slice(0,1)}</span><div><h2>${label}</h2><small>${items.length}개 기록</small></div><button data-do="memoItem" data-cat="${key}" aria-label="${label} 메모 추가">＋</button></header><form class="memoQuickForm" data-memo-category="${key}"><input name="text" placeholder="메모 입력" required><button aria-label="저장">↵</button></form><div class="memoList">${memoCards(items)}</div></article>`;
   }).join("")}</section>`;
 }
 
@@ -385,7 +380,7 @@ function effectiveMonthItems(monthKey) {
     if (!saved || item.date > saved.date) latest.set(key, item);
   });
   const repeated = [...latest.entries()].filter(([key]) => !actualKeys.has(key)).map(([, item]) => ({ ...item, date: monthDate(monthKey, String(item.date).slice(8)), _repeated: true }));
-  return [...actual, ...repeated];
+  return [...actual, ...repeated].filter(item => !(item.kind === "expense" && item.expenseType === "fixed" && store.data.fixedStops?.[recurringKey(item)] <= monthKey));
 }
 function cardBill(cardName, monthKey = ledgerMonth) {
   const transactionTotal = effectiveMonthItems(monthKey).filter(item => item.kind === "expense" && item.card === cardName).reduce((sum, item) => sum + n(item.amount), 0);
@@ -484,11 +479,25 @@ function smartAssetPanel() {
   return `<article class="panel aiAssetPanel ${report.tone}"><header class="panelHead"><div><small class="aiBadge">AI · 기기 내 자동분석</small><h2>은정 Brain 자산진단</h2><p>${ledgerMonth} 등록자료 ${report.dataPoints}건을 생활비 관리 기준으로 분석했어요</p></div><button class="secondary" data-do="refreshAssetAnalysis">↻ 다시 분석</button></header><div class="panelBody"><div class="aiHeadline"><span>✦</span><div><small>한눈에 보는 진단</small><strong>${report.headline}</strong></div></div><div class="aiReportGrid"><section><h3>잘 관리되는 부분</h3>${list(report.strengths, "자료가 쌓이면 잘 관리되는 부분을 찾아드려요.")}</section><section><h3>주의해서 볼 부분</h3>${list(report.cautions, "현재 등록자료에서는 특별한 주의 신호가 없어요.")}</section><section class="aiActions"><h3>다음 행동 3가지</h3>${list(report.actions, "다음 달에도 같은 방식으로 기록해 주세요.")}</section></div><p class="aiDisclaimer">금융상품 추천이 아닌, 직접 입력한 자료를 정해진 생활비 관리 기준으로 해석한 참고용 자동분석입니다.</p></div></article>`;
 }
 function assetsView() {
-  const tabs = [["dashboard", "자산 대시보드"], ["ledger", "월별 가계부"], ["cards", "카드 실적"], ["manage", "자산관리"]]
-    .map(([key, label]) => `<button class="${assetTab === key ? "on" : ""}" data-do="assetTab" data-tab="${key}">${label}</button>`).join("");
-  const content = assetTab === "dashboard" ? assetDashboard() : assetTab === "ledger" ? ledgerView() : assetTab === "cards" ? cardView() : assetManage();
-  return `${pageHead("자산", "카드실적·월별 가계부·자산 상세현황을 자동 계산해요.", `<button class="primary" data-do="transaction">＋ 사용내역</button>`)}<div class="tabs">${tabs}</div>${content}`;
+ const choices=[["variable","변동비 기록"],["fixed","고정비 관리"],["income","수입"],["dashboard","분석"],["cards","카드"],["manage","자산현황"]];
+ const tabs=choices.map(([key,label])=>`<button class="${assetTab===key?"on":""}" data-do="assetTab" data-tab="${key}">${label}</button>`).join("");
+ const content = ["fixed","variable","income"].includes(assetTab) ? expenseWorkspace(assetTab) : assetTab==="dashboard" ? assetDashboard() : assetTab==="cards" ? cardView() : assetManage();
+ return `${pageHead("우리집 자산관리","고정비는 한 번 설정하고, 매일 달라지는 소비만 기록해요.")}<div class="tabs financeTabs">${tabs}</div>${content}`;
 }
+function expenseWorkspace(type) {
+ const t=monthTotals(ledgerMonth), income=type==="income", fixed=type==="fixed";
+ const items=t.items.filter(x=>income ? x.kind==="income" : x.kind==="expense" && x.expenseType===type);
+ const label=income?"수입":fixed?"고정비":"변동비";
+ return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth}</strong><button data-do="ledgerNext">›</button></div>
+ <section class="stats">${stat("수입",won(t.income),"이번 달","+")}${stat("고정비",won(t.fixed),"할부 포함","−")}${stat("변동비",won(t.variable),"기록한 소비","−")}${stat("남은 금액",signedWon(t.net),"수입 − 전체 지출","=")}</section>
+ <article class="panel"><header class="panelHead"><div><h2>${label} 기록</h2><p>${fixed?"한 번 등록하면 다음 달에도 자동 반영됩니다. 수정은 적용월부터, 중단은 이후 반복만 멈춥니다.":income?"이번 달 들어온 금액을 기록하세요.":"카테고리 버튼을 눌러 사용한 금액을 기록하세요."}</p></div><button class="primary" data-do="expenseAdd" data-type="${type}">${label} 추가</button></header>
+ <div class="panelBody"><div class="categoryButtons">${(income?["급여","기타"]:BUDGET_CATEGORIES).map(cat=>`<button data-do="expenseAdd" data-type="${type}" data-cat="${cat}">${cat}</button>`).join("")}</div>
+ ${fixed? `<p class="help">월 할부금 ${won(t.installment)}은 자동 합산됩니다. 같은 금액을 고정비로 다시 입력하지 마세요.</p>`:""}
+ ${transactionRows(items)}
+ ${fixed?items.map(x=>`<div class="fixedControl"><span>${esc(x.title)}</span><button class="textBtn" data-do="stopFixed" data-id="${x.id}">이 달부터 반복 중단</button></div>`).join(""):""}</div></article>
+ <div class="space">${monthlyClosing()}</div>`;
+}
+
 function assetDashboard() {
   const s = assetSummary(), diagnosis = consumptionDiagnosis();
   return `<div class="monthPicker"><button data-do="ledgerPrev">‹</button><strong>${ledgerMonth.replace("-", "년 ")}월 자산분석</strong><button data-do="ledgerNext">›</button></div><section class="assetHero"><article class="total"><small>기타현황을 제외한 순자산</small><strong>${signedWon(s.net)}</strong><div class="breakdown"><div><small>총자산</small><b>${won(s.asset)}</b></div><div><small>대출</small><b>${won(s.debt)}</b></div><div><small>${ledgerMonth} 잔액</small><b>${signedWon(s.income - s.expense)}</b></div></div></article><article class="insight"><h3>✦ 이번 달 소비 진단</h3><p>${diagnosis.top ? `가장 많이 쓴 항목은 <b>${esc(diagnosis.top[0])}</b> ${won(diagnosis.top[1])}입니다.<br>` : "아직 분석할 지출이 없어요.<br>"}${diagnosis.comparison}</p></article></section>
@@ -617,12 +626,13 @@ function travelView() {
 }
 
 function moveView() {
-  const done = store.data.moveItems.filter(item => item.done).length, rate = Math.round(done / Math.max(store.data.moveItems.length, 1) * 100);
-  const mapped = store.data.moveItems.map(item => ({ ...item, category: "move", date: item.due }));
-  const totalCost = store.data.moveItems.reduce((sum, item) => sum + n(item.cost), 0);
-  return `${pageHead("부동산·이사", "수리·견적·구매·처분·이전신청과 부동산 현황을 함께 관리해요.", `<button class="primary" data-do="moveItem">＋ 이사계획</button>`)}
-  <section class="stats">${stat("진행률", `${rate}%`, `${done}/${mapped.length} 완료`, "✓")}${stat("예상비용", won(totalCost), "이사계획 합계", "₩")}${stat("목표일", "2027.03.06", "전세 만기·이사", "◷")}${stat("부동산", `${store.data.properties.length}건`, "자산현황과 연결", "⌂")}</section>
-  <section class="grid2"><article class="panel"><header class="panelHead"><div><h2>이사계획</h2><p>그룹·기한·예상비용·메모</p></div><button class="textBtn" data-do="moveItem">＋ 추가</button></header><div class="panelBody">${taskRows(mapped, 99, "moveItems")}</div></article><article class="panel"><header class="panelHead"><div><h2>부동산 현황</h2><p>구매가·현재시세·대출</p></div><button class="textBtn" data-do="assetItem" data-section="properties">＋ 추가</button></header><div class="panelBody">${assetRows("properties")}</div></article></section>`;
+ const items=[...store.data.moveItems].sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999") || n(b.priority==="high")-n(a.priority==="high"));
+ const done=items.filter(x=>x.done).length, budget=items.reduce((s,x)=>s+n(x.cost),0), actual=items.reduce((s,x)=>s+n(x.actualCost),0);
+ return `${pageHead("부동산 · 이사","일정, 우선순위와 비용을 한 장에서 확인해요.",'<button class="primary" data-do="moveItem">계획 추가</button>')}
+ <section class="stats">${stat("체크리스트",done+"/"+items.length,"완료한 준비","✓")}${stat("예상 예산",won(budget),"등록된 항목 합계","₩")}${stat("실제 사용",won(actual),"입력한 실지출","₩")}${stat("예산 대비 잔액",signedWon(budget-actual),"미입력 실지출은 0으로 계산","=")}</section>
+ <p class="roadmapNote">기존 등록내용을 표시합니다. 새 이사 일정과 예산은 공유해 주실 대화를 확인한 뒤 반영할 예정입니다.</p>
+ <article class="panel"><header class="panelHead"><h2>일정별 준비 체크리스트</h2></header><div class="panelBody moveSchedule">${items.map(x=>`<article class="moveRow ${x.done?"completed":""}"><button class="check ${x.done?"on":""}" data-do="toggle" data-kind="moveItems" data-id="${x.id}" aria-label="완료 표시">${x.done?"✓":""}</button><div><small>${esc(x.due||"날짜 미정")} · ${esc(x.group||"이사")} · ${x.priority==="high"?"우선":x.priority==="low"?"여유":"보통"}</small><h3>${esc(x.title)}</h3><p>${esc(x.memo||"")}</p><div class="moveCosts">예상 ${won(x.cost)} <span>실제 ${won(x.actualCost)}</span></div></div>${actionButtons("moveItems",x.id)}</article>`).join("") || empty("","계획을 추가해 주세요.")}</div></article>
+ <article class="panel space"><header class="panelHead"><h2>부동산 현황</h2><button class="textBtn" data-do="assetItem" data-section="properties">추가</button></header><div class="panelBody">${assetRows("properties")}</div></article>`;
 }
 
 function growthView() {
@@ -638,7 +648,7 @@ function progressCards(items, kind) {
 function render() {
   $("#sideNav").innerHTML = nav(false); $("#bottomNav").innerHTML = nav(true);
   $("#app").innerHTML = ({ planner: plannerView, home: homeView, work: workView, annual: annualView, parenting: parentingView, assets: assetsView, travel: travelView, move: moveView }[route()] || plannerView)();
-  syncUI(); window.scrollTo(0, 0);
+  syncUI();
 }
 
 function infer(text) {
@@ -719,7 +729,7 @@ function transactionModal(item = {}) {
     field("card", "결제수단", "select", item.card || "현금/계좌", { items: cardOptions }) +
     field("performanceIncluded", "카드 실적 포함", "select", item.performanceIncluded ? "yes" : "no", { items: [["yes", "실적 포함"], ["no", "실적 미포함"]] }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
-    { id: item.id }
+    { id: item.id, extra: item.effectiveEdit ? 'data-effective-edit="yes"' : "" }
   ));
 }
 function budgetModal(item = {}) {
@@ -769,7 +779,9 @@ function moveModal(item = {}) {
   modal(item.id ? "이사계획 수정" : "이사계획 추가", form("moveForm",
     field("title", "항목", "text", item.title || "", { full: true }) +
     field("group", "구분", "select", item.group || "이사", { items: ["수리", "이사", "구매", "처분", "이전신청", "행정"].map(v => [v, v]) }) +
-    field("due", "기한", "date", item.due || "2027-03-06") +
+    field("due", "예정일", "date", item.due || iso()) +
+    field("priority", "우선순위", "select", item.priority || "normal", { items: [["high","우선"],["normal","보통"],["low","여유"]] }) +
+    field("actualCost", "실제비용", "number", item.actualCost || 0, { min: 0 }) +
     field("cost", "예상비용", "number", item.cost || 0, { min: 0 }) +
     field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
     { id: item.id }
@@ -804,12 +816,9 @@ function syncModal() {
   modal("PC·모바일 동기화", `<div class="syncInfo"><h3>${online ? "✓ Google 계정으로 연결됨" : configured ? "동기화 준비 완료" : "이 기기에 저장 중"}</h3><p>${online ? `${esc(store.user.email || "로그인 계정")} 데이터가 자동 동기화됩니다.` : "같은 Google 계정으로 로그인하면 모든 기기에서 같은 데이터가 보입니다."}</p></div><div class="buttons">${online ? `<button class="danger" data-do="signOut">로그아웃</button>` : configured ? `<button class="primary" data-do="signIn">Google로 연결하기</button>` : ""}<button class="ghost" data-do="close">닫기</button></div>`);
 }
 function mobileMenuModal() {
-  modal("전체메뉴", `<div class="mobileMenuGrid">
-    <button data-do="mobileRoute" data-route="home"><span>▤</span><strong>메모 기록장</strong><small>8개 분류를 한눈에 관리</small></button>
-    <button data-do="mobileRoute" data-route="travel"><span>✈</span><strong>여행</strong><small>여행 계획과 기록</small></button>
-    <button data-do="mobileRoute" data-route="move"><span>⌂</span><strong>부동산·이사</strong><small>수리·구매·처분 계획</small></button>
-  </div><p class="help space">오늘의 다이어리·업무·도담소담·자산·연간은 화면 아래 탭에서 바로 이동할 수 있어요.</p>`);
+ modal("전체메뉴", `<div class="mobileMenuGrid">${NAV.map(([key,label]) => `<button data-do="mobileRoute" data-route="${key}"><strong>${label}</strong><small>기록 관리하기</small></button>`).join("")}</div>`);
 }
+
 function syncUI() {
   const online = !!store.user; $("#syncDot")?.classList.toggle("on", online);
   if ($("#syncTitle")) $("#syncTitle").textContent = online ? "PC·모바일 동기화 중" : "이 기기에 저장 중";
@@ -836,7 +845,9 @@ document.addEventListener("submit", event => {
     const fixed = data.kind === "expense" && data.expenseType === "fixed";
     const editing = editId ? findItem("transactions", editId) : null;
     const sameFixed = fixed ? store.data.transactions.find(item => item.id !== editId && item.kind === "expense" && item.expenseType === "fixed" && item.title === data.title && item.category === data.category && item.card === data.card) : null;
-    upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, expenseType: data.kind === "expense" ? data.expenseType : "variable", amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", recurringMonthly: fixed, recurringSourceId: fixed ? (editing?.recurringSourceId || sameFixed?.recurringSourceId || sameFixed?.id || editId || "") : "", memo: data.memo }, editId);
+    const versioned = editing?.expenseType === "fixed" && event.target.dataset.effectiveEdit === "yes" && editing.date.slice(0,7) !== data.date.slice(0,7);
+    const transactionEditId = versioned ? "" : editId;
+    upsert(store.data.transactions, { title: data.title, kind: data.kind, category: data.category, expenseType: data.kind === "expense" ? data.expenseType : "variable", amount: n(data.amount), date: data.date, card: data.card, performanceIncluded: data.performanceIncluded === "yes", recurringMonthly: fixed, recurringSourceId: fixed ? (editing?.recurringSourceId || sameFixed?.recurringSourceId || sameFixed?.id || editId || "") : "", memo: data.memo }, transactionEditId);
   }
   if (event.target.id === "budgetForm") {
     const duplicate = store.data.budgets.find(item => item.month === data.month && item.category === data.category && item.id !== editId);
@@ -850,7 +861,7 @@ document.addEventListener("submit", event => {
     upsert(list, item, editId);
   }
   if (event.target.id === "tripForm") upsert(store.data.trips, { type: data.type, title: data.title, destination: data.destination, start: data.start, end: data.end, budget: n(data.budget), memo: data.memo }, editId);
-  if (event.target.id === "moveForm") upsert(store.data.moveItems, { title: data.title, group: data.group, due: data.due, cost: n(data.cost), memo: data.memo, done: editId ? findItem("moveItems", editId)?.done : false }, editId);
+  if (event.target.id === "moveForm") upsert(store.data.moveItems, { title: data.title, group: data.group, due: data.due, cost: n(data.cost), actualCost: n(data.actualCost), priority: data.priority, memo: data.memo, done: editId ? findItem("moveItems", editId)?.done : false }, editId);
   if (event.target.id === "cardForm") {
     const oldName = editId ? findItem("cards", editId)?.name : "";
     if (oldName && oldName !== data.name) store.data.transactions.forEach(item => { if (item.card === oldName) item.card = data.name; });
@@ -886,6 +897,15 @@ document.addEventListener("click", async event => {
   if (action === "task") taskModal({}, button.dataset.cat || "work");
   if (action === "event") eventModal({}, button.dataset.cat || "work");
   if (action === "transaction") transactionModal();
+  if (action === "expenseAdd") transactionModal({kind:button.dataset.type==="income"?"income":"expense",expenseType:button.dataset.type==="fixed"?"fixed":"variable",category:button.dataset.cat || (button.dataset.type==="income"?"급여":"생활비"),date:monthDate(ledgerMonth,new Date().getDate())});
+  if (action === "stopFixed") {
+    const item=findItem("transactions",button.dataset.id);
+    if(item && confirm("이 달부터 이 고정비의 반복을 중단할까요? 이전 달 기록은 유지됩니다.")) {
+      store.data.fixedStops ||= {};
+      store.data.fixedStops[recurringKey(item)] = ledgerMonth;
+      store.save("반복을 중단했어요."); render();
+    }
+  }
   if (action === "budgetItem") budgetModal();
   if (action === "annualItem") annualModal();
   if (action === "annualCell") annualModal({}, button.dataset.row, button.dataset.month);
@@ -899,7 +919,7 @@ document.addEventListener("click", async event => {
     const kind = button.dataset.kind, item = findItem(kind, button.dataset.id, button.dataset.child, button.dataset.section); if (!item) return;
     if (kind === "tasks") taskModal(item, item.category);
     else if (kind === "events") eventModal(item, item.category);
-    else if (kind === "transactions") transactionModal(item);
+    else if (kind === "transactions") transactionModal(item.expenseType === "fixed" ? { ...item, date: monthDate(ledgerMonth, item.date.slice(8)), effectiveEdit: true } : item);
     else if (kind === "budgets") budgetModal(item);
     else if (kind === "annualPlans") annualModal(item);
     else if (kind === "childItem") childModal(button.dataset.child, button.dataset.section, item);
@@ -947,6 +967,15 @@ document.addEventListener("click", async event => {
   if (action === "signOut") { await store.signOut(); closeModal(); }
 });
 
+document.addEventListener("input", event => {
+ const key = event.target.dataset.plannerField;
+ if (!["slot", "focus"].includes(key)) return;
+ const day = plannerDay(true);
+ if (key === "slot") { const time=event.target.dataset.time; day.slots[time] = { ...day.slots[time], text:event.target.value }; }
+ else day.focus=event.target.value;
+ store.data.dailyPlans[plannerDate]=day; store.local();
+});
+
 document.addEventListener("change", event => {
   const fieldName = event.target.dataset.plannerField; if (!fieldName) return;
   if (fieldName === "date") { plannerDate = event.target.value || iso(); render(); return; }
@@ -954,12 +983,13 @@ document.addEventListener("change", event => {
   if (fieldName === "slot") { const time = event.target.dataset.time, previous = day.slots[time] || { done: false }; day.slots[time] = { ...previous, text: event.target.value }; }
   if (fieldName === "focus") day.focus = event.target.value;
   if (fieldName === "memo") day.memo = event.target.value;
-  store.data.dailyPlans[plannerDate] = day; store.save("자동 저장했어요."); render();
+  store.data.dailyPlans[plannerDate] = day; store.save();
 });
 
 $("#backdrop").addEventListener("click", event => { if (event.target === $("#backdrop")) closeModal(); });
 document.addEventListener("keydown", event => { if (event.key === "Escape") closeModal(); });
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
 await store.init();
-if (!location.hash || location.hash === "#/home") location.hash = "#/planner";
+if (!location.hash) location.hash = "#/planner";
 render();
+
