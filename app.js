@@ -994,6 +994,47 @@ function travelView() {
   <section class="tripGrid">${items.length ? items.map(item => `<article class="tripCard"><header><span>${item.type === "plan" ? "계획" : "기록"}</span>${actionButtons("trips", item.id)}</header><h3>${esc(item.title)}</h3><p>📍 ${esc(item.destination)}<br>🗓 ${item.start || "-"} ~ ${item.end || "-"}<br>₩ ${won(item.budget)}</p>${item.memo ? `<small>${esc(item.memo)}</small>` : ""}</article>`).join("") : empty("✈", "첫 여행을 추가해 보세요.")}</section>`;
 }
 
+const MOVE_BUDGET_GROUPS = [["stay","이사·임시거주"],["small","23평 공사"],["large","31평 공사"],["contract","계약·정산"],["other","기타"]];
+function moveBudgetGroup(item) {
+ if (MOVE_BUDGET_GROUPS.some(([key])=>key===item.budgetGroup)) return item.budgetGroup;
+ if (/중개|장기수선|정산/.test(item.title)) return "contract";
+ if (/23평/.test(item.title)) return "small";
+ if (/31평/.test(item.title)) return "large";
+ if (/보관|이사|임대|폐기/.test(item.title)) return "stay";
+ return "other";
+}
+function moveBudgetGrid() {
+ const items=store.data.moveItems.filter(x=>x.recordType==="budget");
+ return `<div class="moveBudgetGrid">${MOVE_BUDGET_GROUPS.map(([key,label])=>{
+ const rows=items.filter(x=>moveBudgetGroup(x)===key);
+ if (!rows.length) return "";
+ return `<article class="budgetGroup"><header><h3>${label}</h3><strong data-move-subtotal="${key}">${manwon(rows.reduce((s,x)=>s+n(x.cost),0))}</strong></header>
+ <div class="budgetColumnLabels"><span>항목</span><span>예상 · 만 원</span><span></span></div>
+ ${rows.map(x=>`<div class="budgetInlineRow"><label for="budget-${esc(x.id)}">${esc(x.title)}${x.done?'<small>확인 완료</small>':""}</label><input id="budget-${esc(x.id)}" data-move-cost="${esc(x.id)}" type="number" inputmode="decimal" min="0" max="100000000" step="0.0001" value="${n(x.cost)/10000}" aria-label="${esc(x.title)} 예상비용 (만 원)"><button class="budgetDetail" data-do="edit" data-kind="moveItems" data-id="${esc(x.id)}" aria-label="${esc(x.title)} 상세 수정">상세</button></div>`).join("")}</article>`;
+ }).join("")}</div>`;
+}
+function refreshMoveBudgetNumbers() {
+ const t=moveBudgetTotals();
+ const values={base:t.base,reserve:t.reserve,total:t.total,actual:t.actual,remaining:t.total-t.actual};
+ document.querySelectorAll("[data-move-total]").forEach(el=>{el.textContent=manwon(values[el.dataset.moveTotal]);});
+ document.querySelectorAll("[data-move-subtotal]").forEach(el=>{
+ const amount=store.data.moveItems.filter(x=>x.recordType==="budget" && moveBudgetGroup(x)===el.dataset.moveSubtotal).reduce((sum,x)=>sum+n(x.cost),0);
+ el.textContent=manwon(amount);
+ });
+}
+function editMoveBudgetInput(input, commit=false) {
+ const item=findItem("moveItems",input.dataset.moveCost);
+ if(!item || item.recordType!=="budget") return;
+ const value=Number(input.value);
+ if(input.value.trim()==="" || !Number.isFinite(value) || value<0 || value>100000000) {
+   if(commit) { input.value=n(item.cost)/10000; toast("0 이상의 금액을 입력해 주세요."); }
+   return;
+ }
+ item.cost=Math.round(value*10000);
+ store.local(); refreshMoveBudgetNumbers();
+ if(commit) { input.value=item.cost/10000; store.save("예산을 저장했어요."); }
+}
+
 function moveProjectRows(type) {
  const items=store.data.moveItems.filter(x=>x.recordType===type);
  const sorted=type==="schedule" ? [...items].sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")) : items;
@@ -1008,11 +1049,11 @@ function moveView() {
  const t=moveBudgetTotals(), checks=store.data.moveItems.filter(x=>x.recordType==="check"), done=checks.filter(x=>x.done).length;
  return `${pageHead("2027 이사 프로젝트","계획부터 잔금, 공사와 입주까지 한눈에 관리해요.")}
  <nav class="projectJump" aria-label="이사 프로젝트 영역"><a href="#moveSchedule" data-do="moveJump" data-target="moveSchedule">일정관리</a><a href="#moveBudget" data-do="moveJump" data-target="moveBudget">예산</a><a href="#moveChecklist" data-do="moveJump" data-target="moveChecklist">체크리스트</a></nav>
- <section class="stats">${stat("기본 예산",manwon(t.base),"예상비용 합계","")}${stat("예비비 10%",manwon(t.reserve),"기본 예산의 10%","")}${stat("총 준비 예산",manwon(t.total),"기본 + 예비비","")}${stat("준비 완료",done+" / "+checks.length,"체크리스트 기준","")}</section>
+ <section class="stats">${stat("기본 예산",`<span data-move-total="base">${manwon(t.base)}</span>`,"예상비용 합계","")}${stat("예비비 10%",`<span data-move-total="reserve">${manwon(t.reserve)}</span>`,"기본 예산의 10%","")}${stat("총 준비 예산",`<span data-move-total="total">${manwon(t.total)}</span>`,"기본 + 예비비","")}${stat("준비 완료",done+" / "+checks.length,"체크리스트 기준","")}</section>
  <aside class="projectNotice"><strong>진행 전 확인</strong><p>모든 예산은 추정치이며, 보증금 반환 및 기존 대출 상환은 별도입니다. 2/20 공사 시작 전 23평 인도 가능 여부를 반드시 확인해 주세요. 신한은행 3,500만 원은 대출 심사 접수 목표이며 승인·실행이 확정된 금액이 아닙니다.</p></aside>
  <section class="panel space" id="moveSchedule"><header class="panelHead"><div><h2>01 · 일정관리</h2><p>2027년 2월 · 계획 변경 시 각 항목을 수정하세요</p></div><button class="primary" data-do="moveItem" data-type="schedule">일정 추가</button></header><div class="panelBody moveSchedule">${moveProjectRows("schedule")}</div></section>
- <section class="panel space" id="moveBudget"><header class="panelHead"><div><h2>02 · 예산</h2><p>표시 단위: 만 원 · 입력 단위: 원 · 예비비는 자동 계산</p></div><button class="primary" data-do="moveItem" data-type="budget">예산 추가</button></header><div class="panelBody"><div class="moveBudgetSummary"><span>실제 사용 <b>${manwon(t.actual)}</b></span><span>총예산 대비 잔액 <b>${manwon(t.total-t.actual)}</b></span></div><p class="help">실제비용 미입력은 0원으로 계산됩니다. 체크 표시는 합계에서 제외하지 않습니다. 가계부·대출에는 자동으로 중복 입력하지 않습니다.</p>${moveProjectRows("budget")}</div></section>
- <section class="panel space" id="moveChecklist"><header class="panelHead"><div><h2>03 · 체크리스트</h2><p>우선 확인할 합의·대출·잔금 순서를 먼저 점검하세요</p></div><button class="primary" data-do="moveItem" data-type="check">할 일 추가</button></header><div class="panelBody">${moveProjectRows("check")}</div></section>
+ <section class="panel space" id="moveBudget"><header class="panelHead"><div><h2>02 · 예산</h2><p>금액을 바로 입력하세요 · 단위: 만 원 · 소계와 총액 자동 계산</p></div><button class="primary" data-do="moveItem" data-type="budget">예산 추가</button></header><div class="panelBody"><div class="moveBudgetSummary"><span>실제 사용 <b data-move-total="actual">${manwon(t.actual)}</b></span><span>총예산 대비 잔액 <b data-move-total="remaining">${manwon(t.total-t.actual)}</b></span></div><p class="help">예: 220 입력 = 220만 원. 입력칸을 나오면 저장돼요. 상세에서 실제비용·분류·메모를 수정하거나 삭제할 수 있어요. 가계부·대출에는 중복 등록하지 않습니다.</p>${moveBudgetGrid()}<div class="budgetSaveRow"><small>예비비 10% 포함 총예산 <b data-move-total="total">${manwon(t.total)}</b></small><button class="primary" data-do="saveAll">예산 저장</button></div></div></section>
+ <section class="panel space" id="moveChecklist"><header class="panelHead"><div><h2>03 · 체크리스트</h2><p>우선 확인할 합의·대출·잔금 순서를 먼저 점검하세요</p></div><button class="primary" data-do="moveItem" data-type="check">할 일 추가</button></header><div class="panelBody moveChecklistGrid">${moveProjectRows("check")}</div></section>
  <article class="panel space"><header class="panelHead"><h2>부동산 자산현황</h2><button class="textBtn" data-do="assetItem" data-section="properties">추가</button></header><div class="panelBody">${assetRows("properties")}</div></article>`;
 }
 
@@ -1162,7 +1203,7 @@ function moveModal(item = {}, type = "check") {
  field("due", recordType==="schedule"?"시작일 / 목표일":"예정일 (선택)","date",item.due||"",{required:false})+
  field("priority","우선순위","select",item.priority||"normal",{items:[["high","우선 확인"],["normal","보통"],["low","여유"]]});
  if(recordType==="schedule") fields+=field("endDate","종료일 (선택)","date",item.endDate||"",{required:false});
- if(recordType==="budget") fields+=field("cost","예상비용 (원)","number",item.cost??0,{min:0})+field("actualCost","실제비용 (원)","number",item.actualCost??0,{min:0});
+ if(recordType==="budget") fields+=field("budgetGroup","예산 묶음","select",moveBudgetGroup(item),{items:MOVE_BUDGET_GROUPS})+field("cost","예상비용 (만 원)","number",n(item.cost)/10000,{min:0,step:"0.0001"})+field("actualCost","실제비용 (만 원)","number",n(item.actualCost)/10000,{min:0,step:"0.0001"});
  fields+=field("memo","메모","textarea",item.memo||"",{full:true,required:false});
  modal(label+(item.id?" 수정":" 추가"), form("moveForm",fields,{id:item.id,deleteKind:"moveItems",extra:`data-record-type="${recordType}"`}));
 }
@@ -1243,7 +1284,7 @@ document.addEventListener("submit", event => {
   if (event.target.id === "tripForm") upsert(store.data.trips, { type: data.type, title: data.title, destination: data.destination, start: data.start, end: data.end, budget: n(data.budget), memo: data.memo }, editId);
   if (event.target.id === "moveForm") {
     if (data.endDate && data.due && data.endDate < data.due) { toast("종료일은 시작일 이후로 입력해 주세요."); return; }
-    upsert(store.data.moveItems, { title:data.title, recordType:event.target.dataset.recordType || "check", due:data.due, endDate:data.endDate||"", cost:n(data.cost), actualCost:n(data.actualCost), priority:data.priority, memo:data.memo, done:editId?findItem("moveItems",editId)?.done:false },editId);
+    upsert(store.data.moveItems, { title:data.title, recordType:event.target.dataset.recordType || "check", due:data.due, endDate:data.endDate||"", cost:Math.round(n(data.cost)*10000), actualCost:Math.round(n(data.actualCost)*10000), budgetGroup:data.budgetGroup||"", priority:data.priority, memo:data.memo, done:editId?findItem("moveItems",editId)?.done:false },editId);
   }
   if (event.target.id === "cardForm") {
     const oldName = editId ? findItem("cards", editId)?.name : "";
@@ -1352,6 +1393,7 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("input", event => {
+ if(event.target.dataset.moveCost) { editMoveBudgetInput(event.target); return; }
  const key = event.target.dataset.plannerField;
  if (!["slot", "focus"].includes(key)) return;
  const day = plannerDay(true);
@@ -1361,6 +1403,7 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("change", event => {
+  if(event.target.dataset.moveCost) { editMoveBudgetInput(event.target,true); return; }
   const fieldName = event.target.dataset.plannerField; if (!fieldName) return;
   if (fieldName === "date") { plannerDate = event.target.value || iso(); render(); return; }
   const day = plannerDay(true);
