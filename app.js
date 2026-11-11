@@ -115,6 +115,363 @@ function seed() {
   };
 }
 
+const MOVE_PROJECT_VERSION = "2027-confirmed-v1";
+function initialMoveProject() {
+ return [
+  {
+    "id": "move2027-s0",
+    "recordType": "schedule",
+    "title": "신한은행 3,500만원 대출 심사 접수",
+    "due": "2027-02-05",
+    "endDate": "",
+    "memo": "2/5 이전 접수 목표 · 실행 확정 아님. 대출금은 공사 예산에 합산하지 않음.",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s1",
+    "recordType": "schedule",
+    "title": "23평 짐 반출·보관 및 단기임대 입실",
+    "due": "2027-02-20",
+    "endDate": "",
+    "memo": "누수·전기·베란다 페인트 보수 · 공사 시작 전 23평 인도 가능 여부 확인",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s2",
+    "recordType": "schedule",
+    "title": "23평 도배·장판 및 입주청소",
+    "due": "2027-02-21",
+    "endDate": "2027-02-22",
+    "memo": "작업 순서와 업체별 시간 확인",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s3",
+    "recordType": "schedule",
+    "title": "세 집 동시 잔금",
+    "due": "2027-02-23",
+    "endDate": "",
+    "memo": "23평 신규 세입자 입주 · 31평 기존 세입자 퇴거 · 잔금 입출금 순서 확인",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s4",
+    "recordType": "schedule",
+    "title": "31평 샷시공사",
+    "due": "2027-02-24",
+    "endDate": "",
+    "memo": "실측 및 계약·시공 일정 확인",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s5",
+    "recordType": "schedule",
+    "title": "31평 도배·입주청소·하자 점검",
+    "due": "2027-02-25",
+    "endDate": "2027-02-26",
+    "memo": "공정 간 일정과 하자 보수 확인",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s6",
+    "recordType": "schedule",
+    "title": "보관짐 반입·31평 최종 입주",
+    "due": "2027-02-27",
+    "endDate": "",
+    "memo": "보관짐 상태와 최종 반입 시간 확인",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-b0",
+    "recordType": "budget",
+    "title": "보관이사",
+    "cost": 2200000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b1",
+    "recordType": "budget",
+    "title": "단기임대",
+    "cost": 500000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b2",
+    "recordType": "budget",
+    "title": "폐기물",
+    "cost": 150000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b3",
+    "recordType": "budget",
+    "title": "23평 누수",
+    "cost": 500000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b4",
+    "recordType": "budget",
+    "title": "23평 콘센트·스위치",
+    "cost": 250000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b5",
+    "recordType": "budget",
+    "title": "23평 베란다 페인트",
+    "cost": 400000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b6",
+    "recordType": "budget",
+    "title": "23평 도배·장판",
+    "cost": 1700000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b7",
+    "recordType": "budget",
+    "title": "23평 청소",
+    "cost": 300000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b8",
+    "recordType": "budget",
+    "title": "23평 중개보수",
+    "cost": 1000000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b9",
+    "recordType": "budget",
+    "title": "31평 장기수선충당금 반환",
+    "cost": 1000000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b10",
+    "recordType": "budget",
+    "title": "31평 샷시",
+    "cost": 13000000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b11",
+    "recordType": "budget",
+    "title": "31평 도배",
+    "cost": 1000000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b12",
+    "recordType": "budget",
+    "title": "31평 청소",
+    "cost": 400000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "추정 예산",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-c0",
+    "recordType": "check",
+    "title": "23평 세입자 조기 인도 합의",
+    "due": "",
+    "memo": "",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c1",
+    "recordType": "check",
+    "title": "31평 세입자 퇴거일 합의",
+    "due": "",
+    "memo": "",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c2",
+    "recordType": "check",
+    "title": "대출 심사 및 실행 확인",
+    "due": "",
+    "memo": "",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c3",
+    "recordType": "check",
+    "title": "보관이사 견적 비교",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c4",
+    "recordType": "check",
+    "title": "단기임대 예약",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c5",
+    "recordType": "check",
+    "title": "23평 누수·보수 견적",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c6",
+    "recordType": "check",
+    "title": "23평 도배·장판·청소 예약",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c7",
+    "recordType": "check",
+    "title": "31평 샷시 실측·계약",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c8",
+    "recordType": "check",
+    "title": "31평 도배·청소 예약",
+    "due": "",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c9",
+    "recordType": "check",
+    "title": "2/23 잔금 입출금 순서표 작성",
+    "due": "",
+    "memo": "",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  }
+];
+}
+function migrateMoveProject(data) {
+ if (data.moveProjectVersion !== MOVE_PROJECT_VERSION) {
+   data.moveItems = initialMoveProject();
+   data.moveProjectVersion = MOVE_PROJECT_VERSION;
+ }
+ return data;
+}
+function moveBudgetTotals() {
+ const rows=store.data.moveItems.filter(x=>x.recordType==="budget");
+ const base=rows.reduce((sum,x)=>sum+n(x.cost),0), actual=rows.reduce((sum,x)=>sum+n(x.actualCost),0);
+ const reserve=Math.round(base*0.1);
+ return {base,reserve,total:base+reserve,actual};
+}
+function manwon(value) { return new Intl.NumberFormat("ko-KR",{maximumFractionDigits:4}).format(n(value)/10000)+"만 원"; }
+
 function normalize(raw = {}) {
   const base = seed();
   const data = { ...base, ...raw, version: 2 };
@@ -153,12 +510,12 @@ function normalize(raw = {}) {
       growth: raw.childData?.sodam?.growth || base.childData.sodam.growth
     }
   };
-  return data;
+  return migrateMoveProject(data);
 }
 
 class Store {
   constructor() {
-    try { this.data = normalize(JSON.parse(localStorage.getItem(KEY)) || {}); } catch { this.data = seed(); }
+    try { this.data = normalize(JSON.parse(localStorage.getItem(KEY)) || {}); } catch { this.data = normalize({}); }
     this.user = null; this.fb = null; this.unsubscribe = null; this.pendingWrites = 0; this.writeQueue = Promise.resolve();
   }
   local() { localStorage.setItem(KEY, JSON.stringify(this.data)); }
@@ -192,7 +549,19 @@ class Store {
         this.user = user;
         if (this.unsubscribe) this.unsubscribe();
         if (user) {
-          const ref = fire.doc(db, "brains", user.uid), snap = await fire.getDoc(ref);
+          const ref = fire.doc(db, "brains", user.uid);
+          // Atomically replace only the authorized move collection once per account.
+          await fire.runTransaction(db, async transaction => {
+            const existing = await transaction.get(ref);
+            if (existing.exists() && existing.data().state?.moveProjectVersion !== MOVE_PROJECT_VERSION) {
+              transaction.update(ref, {
+                "state.moveItems": initialMoveProject(),
+                "state.moveProjectVersion": MOVE_PROJECT_VERSION,
+                updatedAt: fire.serverTimestamp()
+              });
+            }
+          });
+          const snap = await fire.getDoc(ref);
           if (snap.exists()) this.data = normalize(snap.data().state);
           else await fire.setDoc(ref, { state: this.data, updatedAt: fire.serverTimestamp() });
           this.local();
@@ -625,14 +994,26 @@ function travelView() {
   <section class="tripGrid">${items.length ? items.map(item => `<article class="tripCard"><header><span>${item.type === "plan" ? "계획" : "기록"}</span>${actionButtons("trips", item.id)}</header><h3>${esc(item.title)}</h3><p>📍 ${esc(item.destination)}<br>🗓 ${item.start || "-"} ~ ${item.end || "-"}<br>₩ ${won(item.budget)}</p>${item.memo ? `<small>${esc(item.memo)}</small>` : ""}</article>`).join("") : empty("✈", "첫 여행을 추가해 보세요.")}</section>`;
 }
 
+function moveProjectRows(type) {
+ const items=store.data.moveItems.filter(x=>x.recordType===type);
+ const sorted=type==="schedule" ? [...items].sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999")) : items;
+ return sorted.map(x=>`<article class="moveRow ${x.done?"completed":""}">
+ <button class="check ${x.done?"on":""}" data-do="toggle" data-kind="moveItems" data-id="${x.id}" aria-label="${esc(x.title)} 완료">${x.done?"✓":""}</button>
+ <div><small>${x.due?esc(x.due)+(x.endDate?" ~ "+esc(x.endDate):""):"날짜 미지정"} · ${x.priority==="high"?"우선 확인":x.priority==="low"?"여유":"보통"}</small>
+ <h3>${esc(x.title)}</h3><p>${esc(x.memo||"")}</p>
+ ${type==="budget"?`<div class="moveCosts">예상 <b>${manwon(x.cost)}</b><span>실제 ${manwon(x.actualCost)}</span></div>`:""}</div>
+ ${actionButtons("moveItems",x.id)}</article>`).join("") || empty("","등록된 항목이 없어요.");
+}
 function moveView() {
- const items=[...store.data.moveItems].sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999") || n(b.priority==="high")-n(a.priority==="high"));
- const done=items.filter(x=>x.done).length, budget=items.reduce((s,x)=>s+n(x.cost),0), actual=items.reduce((s,x)=>s+n(x.actualCost),0);
- return `${pageHead("부동산 · 이사","일정, 우선순위와 비용을 한 장에서 확인해요.",'<button class="primary" data-do="moveItem">계획 추가</button>')}
- <section class="stats">${stat("체크리스트",done+"/"+items.length,"완료한 준비","✓")}${stat("예상 예산",won(budget),"등록된 항목 합계","₩")}${stat("실제 사용",won(actual),"입력한 실지출","₩")}${stat("예산 대비 잔액",signedWon(budget-actual),"미입력 실지출은 0으로 계산","=")}</section>
- <p class="roadmapNote">기존 등록내용을 표시합니다. 새 이사 일정과 예산은 공유해 주실 대화를 확인한 뒤 반영할 예정입니다.</p>
- <article class="panel"><header class="panelHead"><h2>일정별 준비 체크리스트</h2></header><div class="panelBody moveSchedule">${items.map(x=>`<article class="moveRow ${x.done?"completed":""}"><button class="check ${x.done?"on":""}" data-do="toggle" data-kind="moveItems" data-id="${x.id}" aria-label="완료 표시">${x.done?"✓":""}</button><div><small>${esc(x.due||"날짜 미정")} · ${esc(x.group||"이사")} · ${x.priority==="high"?"우선":x.priority==="low"?"여유":"보통"}</small><h3>${esc(x.title)}</h3><p>${esc(x.memo||"")}</p><div class="moveCosts">예상 ${won(x.cost)} <span>실제 ${won(x.actualCost)}</span></div></div>${actionButtons("moveItems",x.id)}</article>`).join("") || empty("","계획을 추가해 주세요.")}</div></article>
- <article class="panel space"><header class="panelHead"><h2>부동산 현황</h2><button class="textBtn" data-do="assetItem" data-section="properties">추가</button></header><div class="panelBody">${assetRows("properties")}</div></article>`;
+ const t=moveBudgetTotals(), checks=store.data.moveItems.filter(x=>x.recordType==="check"), done=checks.filter(x=>x.done).length;
+ return `${pageHead("2027 이사 프로젝트","계획부터 잔금, 공사와 입주까지 한눈에 관리해요.")}
+ <nav class="projectJump" aria-label="이사 프로젝트 영역"><a href="#moveSchedule" data-do="moveJump" data-target="moveSchedule">일정관리</a><a href="#moveBudget" data-do="moveJump" data-target="moveBudget">예산</a><a href="#moveChecklist" data-do="moveJump" data-target="moveChecklist">체크리스트</a></nav>
+ <section class="stats">${stat("기본 예산",manwon(t.base),"예상비용 합계","")}${stat("예비비 10%",manwon(t.reserve),"기본 예산의 10%","")}${stat("총 준비 예산",manwon(t.total),"기본 + 예비비","")}${stat("준비 완료",done+" / "+checks.length,"체크리스트 기준","")}</section>
+ <aside class="projectNotice"><strong>진행 전 확인</strong><p>모든 예산은 추정치이며, 보증금 반환 및 기존 대출 상환은 별도입니다. 2/20 공사 시작 전 23평 인도 가능 여부를 반드시 확인해 주세요. 신한은행 3,500만 원은 대출 심사 접수 목표이며 승인·실행이 확정된 금액이 아닙니다.</p></aside>
+ <section class="panel space" id="moveSchedule"><header class="panelHead"><div><h2>01 · 일정관리</h2><p>2027년 2월 · 계획 변경 시 각 항목을 수정하세요</p></div><button class="primary" data-do="moveItem" data-type="schedule">일정 추가</button></header><div class="panelBody moveSchedule">${moveProjectRows("schedule")}</div></section>
+ <section class="panel space" id="moveBudget"><header class="panelHead"><div><h2>02 · 예산</h2><p>표시 단위: 만 원 · 입력 단위: 원 · 예비비는 자동 계산</p></div><button class="primary" data-do="moveItem" data-type="budget">예산 추가</button></header><div class="panelBody"><div class="moveBudgetSummary"><span>실제 사용 <b>${manwon(t.actual)}</b></span><span>총예산 대비 잔액 <b>${manwon(t.total-t.actual)}</b></span></div><p class="help">실제비용 미입력은 0원으로 계산됩니다. 체크 표시는 합계에서 제외하지 않습니다. 가계부·대출에는 자동으로 중복 입력하지 않습니다.</p>${moveProjectRows("budget")}</div></section>
+ <section class="panel space" id="moveChecklist"><header class="panelHead"><div><h2>03 · 체크리스트</h2><p>우선 확인할 합의·대출·잔금 순서를 먼저 점검하세요</p></div><button class="primary" data-do="moveItem" data-type="check">할 일 추가</button></header><div class="panelBody">${moveProjectRows("check")}</div></section>
+ <article class="panel space"><header class="panelHead"><h2>부동산 자산현황</h2><button class="textBtn" data-do="assetItem" data-section="properties">추가</button></header><div class="panelBody">${assetRows("properties")}</div></article>`;
 }
 
 function growthView() {
@@ -775,18 +1156,17 @@ function tripModal(item = {}, type = "plan") {
     { id: item.id }
   ));
 }
-function moveModal(item = {}) {
-  modal(item.id ? "이사계획 수정" : "이사계획 추가", form("moveForm",
-    field("title", "항목", "text", item.title || "", { full: true }) +
-    field("group", "구분", "select", item.group || "이사", { items: ["수리", "이사", "구매", "처분", "이전신청", "행정"].map(v => [v, v]) }) +
-    field("due", "예정일", "date", item.due || iso()) +
-    field("priority", "우선순위", "select", item.priority || "normal", { items: [["high","우선"],["normal","보통"],["low","여유"]] }) +
-    field("actualCost", "실제비용", "number", item.actualCost || 0, { min: 0 }) +
-    field("cost", "예상비용", "number", item.cost || 0, { min: 0 }) +
-    field("memo", "메모", "textarea", item.memo || "", { full: true, required: false }),
-    { id: item.id }
-  ));
+function moveModal(item = {}, type = "check") {
+ const recordType=item.recordType||type, label={schedule:"일정",budget:"예산",check:"체크리스트"}[recordType];
+ let fields=field("title","항목","text",item.title||"",{full:true})+
+ field("due", recordType==="schedule"?"시작일 / 목표일":"예정일 (선택)","date",item.due||"",{required:false})+
+ field("priority","우선순위","select",item.priority||"normal",{items:[["high","우선 확인"],["normal","보통"],["low","여유"]]});
+ if(recordType==="schedule") fields+=field("endDate","종료일 (선택)","date",item.endDate||"",{required:false});
+ if(recordType==="budget") fields+=field("cost","예상비용 (원)","number",item.cost??0,{min:0})+field("actualCost","실제비용 (원)","number",item.actualCost??0,{min:0});
+ fields+=field("memo","메모","textarea",item.memo||"",{full:true,required:false});
+ modal(label+(item.id?" 수정":" 추가"), form("moveForm",fields,{id:item.id,deleteKind:"moveItems",extra:`data-record-type="${recordType}"`}));
 }
+
 function cardModal(item = {}) {
   modal(item.id ? "카드 수정" : "카드 추가", form("cardForm", field("name", "카드명", "text", item.name || "") + field("target", "월 목표실적", "number", item.target || 0, { min: 0 }), { id: item.id }));
 }
@@ -861,7 +1241,10 @@ document.addEventListener("submit", event => {
     upsert(list, item, editId);
   }
   if (event.target.id === "tripForm") upsert(store.data.trips, { type: data.type, title: data.title, destination: data.destination, start: data.start, end: data.end, budget: n(data.budget), memo: data.memo }, editId);
-  if (event.target.id === "moveForm") upsert(store.data.moveItems, { title: data.title, group: data.group, due: data.due, cost: n(data.cost), actualCost: n(data.actualCost), priority: data.priority, memo: data.memo, done: editId ? findItem("moveItems", editId)?.done : false }, editId);
+  if (event.target.id === "moveForm") {
+    if (data.endDate && data.due && data.endDate < data.due) { toast("종료일은 시작일 이후로 입력해 주세요."); return; }
+    upsert(store.data.moveItems, { title:data.title, recordType:event.target.dataset.recordType || "check", due:data.due, endDate:data.endDate||"", cost:n(data.cost), actualCost:n(data.actualCost), priority:data.priority, memo:data.memo, done:editId?findItem("moveItems",editId)?.done:false },editId);
+  }
   if (event.target.id === "cardForm") {
     const oldName = editId ? findItem("cards", editId)?.name : "";
     if (oldName && oldName !== data.name) store.data.transactions.forEach(item => { if (item.card === oldName) item.card = data.name; });
@@ -911,7 +1294,8 @@ document.addEventListener("click", async event => {
   if (action === "annualCell") annualModal({}, button.dataset.row, button.dataset.month);
   if (action === "childItem") childModal(button.dataset.child, button.dataset.section);
   if (action === "trip") tripModal({}, button.dataset.type || travelTab);
-  if (action === "moveItem") moveModal();
+  if (action === "moveItem") moveModal({}, button.dataset.type || "check");
+  if (action === "moveJump") { event.preventDefault(); document.getElementById(button.dataset.target)?.scrollIntoView({behavior:"smooth",block:"start"}); }
   if (action === "assetItem") assetModal(button.dataset.section);
   if (action === "simpleItem") simpleModal(button.dataset.section);
   if (action === "toggle") { const item = findItem(button.dataset.kind, button.dataset.id); if (item) { item.done = !item.done; store.save(); render(); } }
