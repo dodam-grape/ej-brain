@@ -1095,6 +1095,7 @@ function modal(title, html) {
 function closeModal() { $("#backdrop").hidden = true; document.body.style.overflow = ""; }
 function field(name, label, type = "text", value = "", options = {}) {
   const full = options.full ? "full" : "";
+  if (type === "choice") return `<fieldset class="choiceField ${full}"><legend>${esc(label)}</legend><div class="choiceOptions">${options.items.map(([v, l]) => `<label class="choiceOption"><input type="radio" name="${esc(name)}" value="${esc(v)}" ${String(v) === String(value) ? "checked" : ""} required><span>${esc(l)}</span></label>`).join("")}</div></fieldset>`;
   if (type === "select") return `<div class="field ${full}"><label>${label}</label><select name="${name}">${options.items.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value) ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></div>`;
   if (type === "textarea") return `<div class="field ${full}"><label>${label}</label><textarea name="${name}" ${options.required === false ? "" : "required"}>${esc(value)}</textarea></div>`;
   if (type === "checkbox") return `<label class="checkField"><input name="${name}" type="checkbox" ${value ? "checked" : ""}> ${label}</label>`;
@@ -1201,9 +1202,9 @@ function moveModal(item = {}, type = "check") {
  const recordType=item.recordType||type, label={schedule:"일정",budget:"예산",check:"체크리스트"}[recordType];
  let fields=field("title","항목","text",item.title||"",{full:true})+
  field("due", recordType==="schedule"?"시작일 / 목표일":"예정일 (선택)","date",item.due||"",{required:false})+
- field("priority","우선순위","select",item.priority||"normal",{items:[["high","우선 확인"],["normal","보통"],["low","여유"]]});
+ field("priority","우선순위","choice",item.priority||"normal",{full:true,items:[["high","우선 확인"],["normal","보통"],["low","여유"]]});
  if(recordType==="schedule") fields+=field("endDate","종료일 (선택)","date",item.endDate||"",{required:false});
- if(recordType==="budget") fields+=field("budgetGroup","예산 묶음","select",moveBudgetGroup(item),{items:MOVE_BUDGET_GROUPS})+field("cost","예상비용 (만 원)","number",n(item.cost)/10000,{min:0,step:"0.0001"})+field("actualCost","실제비용 (만 원)","number",n(item.actualCost)/10000,{min:0,step:"0.0001"});
+ if(recordType==="budget") fields+=field("budgetGroup","예산 묶음","choice",moveBudgetGroup(item),{full:true,items:MOVE_BUDGET_GROUPS})+field("cost","예상비용 (만 원)","number",n(item.cost)/10000,{min:0,step:"0.0001"})+field("actualCost","실제비용 (만 원)","number",n(item.actualCost)/10000,{min:0,step:"0.0001"});
  fields+=field("memo","메모","textarea",item.memo||"",{full:true,required:false});
  modal(label+(item.id?" 수정":" 추가"), form("moveForm",fields,{id:item.id,deleteKind:"moveItems",extra:`data-record-type="${recordType}"`}));
 }
