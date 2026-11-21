@@ -115,16 +115,16 @@ function seed() {
   };
 }
 
-const MOVE_PROJECT_VERSION = "2027-confirmed-v1";
+const MOVE_PROJECT_VERSION = "2027-feb01-v2";
 function initialMoveProject() {
  return [
   {
     "id": "move2027-s0",
     "recordType": "schedule",
-    "title": "신한은행 3,500만원 대출 심사 접수",
-    "due": "2027-02-05",
-    "endDate": "",
-    "memo": "2/5 이전 접수 목표 · 실행 확정 아님. 대출금은 공사 예산에 합산하지 않음.",
+    "title": "12월 계약·은행 사전확인",
+    "due": "2026-11-21",
+    "endDate": "2026-12-06",
+    "memo": "23평 신규 전세계약 및 31평 기존 세입자 2/1 조기 퇴거 서면 합의. 은행 승인 유효기간·실행 조건 확인.",
     "priority": "high",
     "done": false,
     "cost": 0,
@@ -133,11 +133,11 @@ function initialMoveProject() {
   {
     "id": "move2027-s1",
     "recordType": "schedule",
-    "title": "23평 짐 반출·보관 및 단기임대 입실",
-    "due": "2027-02-20",
-    "endDate": "",
-    "memo": "누수·전기·베란다 페인트 보수 · 공사 시작 전 23평 인도 가능 여부 확인",
-    "priority": "high",
+    "title": "12월 보관이사·샷시·도배 견적 및 예약",
+    "due": "2026-12-01",
+    "endDate": "2026-12-31",
+    "memo": "보관이사 3곳·샷시 3곳 견적, 31평 사전 실측 협의, 23평 수리 및 양쪽 도배 업체 선정. 어머니 집 임시거주.",
+    "priority": "normal",
     "done": false,
     "cost": 0,
     "actualCost": 0
@@ -145,11 +145,11 @@ function initialMoveProject() {
   {
     "id": "move2027-s2",
     "recordType": "schedule",
-    "title": "23평 도배·장판 및 입주청소",
-    "due": "2027-02-21",
-    "endDate": "2027-02-22",
-    "memo": "작업 순서와 업체별 시간 확인",
-    "priority": "normal",
+    "title": "신한은행 대출심사 접수",
+    "due": "2027-01-04",
+    "endDate": "",
+    "memo": "승인 유효기간 1개월(은행 안내). 2/1 실행 가능 여부와 승인일 기준 유효기간 재확인. 목표 3,500만원.",
+    "priority": "high",
     "done": false,
     "cost": 0,
     "actualCost": 0
@@ -157,11 +157,11 @@ function initialMoveProject() {
   {
     "id": "move2027-s3",
     "recordType": "schedule",
-    "title": "세 집 동시 잔금",
-    "due": "2027-02-23",
-    "endDate": "",
-    "memo": "23평 신규 세입자 입주 · 31평 기존 세입자 퇴거 · 잔금 입출금 순서 확인",
-    "priority": "high",
+    "title": "냉장고 식품 소진·폐기물 정리",
+    "due": "2027-01-18",
+    "endDate": "2027-01-26",
+    "memo": "냉동·냉장 식품 소비, 음식물·대형폐기물 분리배출, 냉장고 세척·건조.",
+    "priority": "normal",
     "done": false,
     "cost": 0,
     "actualCost": 0
@@ -169,10 +169,10 @@ function initialMoveProject() {
   {
     "id": "move2027-s4",
     "recordType": "schedule",
-    "title": "31평 샷시공사",
-    "due": "2027-02-24",
+    "title": "에어컨·식기세척기·음식물처리기 철거",
+    "due": "2027-01-26",
     "endDate": "",
-    "memo": "실측 및 계약·시공 일정 확인",
+    "memo": "LG 2in1 에어컨 냉매 회수·철거, SK 식기세척기 급배수 분리, 분쇄형 음식물처리기 철거 및 23평 일반 배수구 복구. 전문기사 담당.",
     "priority": "normal",
     "done": false,
     "cost": 0,
@@ -181,10 +181,10 @@ function initialMoveProject() {
   {
     "id": "move2027-s5",
     "recordType": "schedule",
-    "title": "31평 도배·입주청소·하자 점검",
-    "due": "2027-02-25",
-    "endDate": "2027-02-26",
-    "memo": "공정 간 일정과 하자 보수 확인",
+    "title": "23평 보관이사 반출·어머니 집 이동",
+    "due": "2027-01-27",
+    "endDate": "",
+    "memo": "5층에서 짐 반출, 약 15일 보관. 이사업체: 냉장고·드럼세탁기·TV·슈로스바 분해/운반 가능 범위 확인. 어머니 집 거주(숙소비 0).",
     "priority": "normal",
     "done": false,
     "cost": 0,
@@ -193,10 +193,94 @@ function initialMoveProject() {
   {
     "id": "move2027-s6",
     "recordType": "schedule",
-    "title": "보관짐 반입·31평 최종 입주",
-    "due": "2027-02-27",
+    "title": "23평 누수·전기·페인트·도배장판",
+    "due": "2027-01-28",
+    "endDate": "2027-01-29",
+    "memo": "누수 방수·건조 → 전기/페인트 → 도배·장판. 슈로스바 기존 타공 복구.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s7",
+    "recordType": "schedule",
+    "title": "23평 입주청소·최종점검",
+    "due": "2027-01-30",
+    "endDate": "2027-01-31",
+    "memo": "토요일 청소, 일요일 공사 지연 대비 예비일.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s8",
+    "recordType": "schedule",
+    "title": "세 집 동시 잔금·대출 실행",
+    "due": "2027-02-01",
     "endDate": "",
-    "memo": "보관짐 상태와 최종 반입 시간 확인",
+    "memo": "23평 신규 세입자 입주·31평 기존 세입자 퇴거. 보증금 3억원 유입, 3억3500만원 반환, 차액 3500만원 대출 계획. 입금·대출·반환 순서 은행/중개사 협의.",
+    "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s9",
+    "recordType": "schedule",
+    "title": "31평 전체 샷시 교체",
+    "due": "2027-02-02",
+    "endDate": "2027-02-03",
+    "memo": "11층 강풍 대비 내풍압·고정·단열·기밀·방수 확인. 숙련팀 시공, 보양 및 파손 책임 계약서 명시. 철거 후 벽체 복구.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s10",
+    "recordType": "schedule",
+    "title": "31평 도배·마감",
+    "due": "2027-02-04",
+    "endDate": "2027-02-05",
+    "memo": "샷시 설치·벽체 복구 및 건조 확인 후 도배. 장판 교체 여부 미확정.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s11",
+    "recordType": "schedule",
+    "title": "설 연휴·어머니 집 거주",
+    "due": "2027-02-06",
+    "endDate": "2027-02-09",
+    "memo": "설 연휴 동안 공사 중단 가능. 일정 지연 대비.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s12",
+    "recordType": "schedule",
+    "title": "31평 최종 점검·입주청소",
+    "due": "2027-02-10",
+    "endDate": "",
+    "memo": "창호·도배 하자 확인, 청소, 가전 설치 준비.",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-s13",
+    "recordType": "schedule",
+    "title": "보관짐 반입·31평 입주",
+    "due": "2027-02-11",
+    "endDate": "",
+    "memo": "보관이사 반입. LG 에어컨·SK 식기세척기·음식물처리기 전문 설치, 세탁기 연결, 인터넷·IPTV 개통, 슈로스바 전문 벽체 고정. 업체별 실제 작업일 조율.",
     "priority": "normal",
     "done": false,
     "cost": 0,
@@ -205,151 +289,176 @@ function initialMoveProject() {
   {
     "id": "move2027-b0",
     "recordType": "budget",
-    "title": "보관이사",
-    "cost": 2200000,
+    "title": "보관이사 (약 15일)",
+    "cost": 2600000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "stay",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b1",
     "recordType": "budget",
-    "title": "단기임대",
-    "cost": 500000,
+    "title": "폐기물 처리",
+    "cost": 150000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "stay",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b2",
     "recordType": "budget",
-    "title": "폐기물",
-    "cost": 150000,
+    "title": "23평 누수·방수",
+    "cost": 500000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "small",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b3",
     "recordType": "budget",
-    "title": "23평 누수",
-    "cost": 500000,
+    "title": "23평 콘센트·스위치",
+    "cost": 250000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "small",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b4",
     "recordType": "budget",
-    "title": "23평 콘센트·스위치",
-    "cost": 250000,
+    "title": "23평 베란다 페인트",
+    "cost": 400000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "small",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b5",
     "recordType": "budget",
-    "title": "23평 베란다 페인트",
-    "cost": 400000,
+    "title": "23평 도배·장판",
+    "cost": 1700000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "small",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b6",
     "recordType": "budget",
-    "title": "23평 도배·장판",
-    "cost": 1700000,
+    "title": "23평 입주청소",
+    "cost": 150000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "small",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b7",
     "recordType": "budget",
-    "title": "23평 청소",
-    "cost": 300000,
+    "title": "31평 샷시 전체 교체",
+    "cost": 15000000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "large",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b8",
     "recordType": "budget",
-    "title": "23평 중개보수",
-    "cost": 1000000,
+    "title": "31평 도배",
+    "cost": 2200000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "large",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b9",
     "recordType": "budget",
-    "title": "31평 장기수선충당금 반환",
-    "cost": 1000000,
+    "title": "31평 입주청소",
+    "cost": 200000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "large",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b10",
     "recordType": "budget",
-    "title": "31평 샷시",
-    "cost": 13000000,
+    "title": "가전·설치물 이전설치",
+    "cost": 1100000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "other",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b11",
     "recordType": "budget",
-    "title": "31평 도배",
+    "title": "장기수선충당금 정산",
     "cost": 1000000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "contract",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-b12",
     "recordType": "budget",
-    "title": "31평 청소",
-    "cost": 400000,
+    "title": "부동산 중개수수료",
+    "cost": 1000000,
     "actualCost": 0,
     "due": "",
-    "memo": "추정 예산",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "contract",
+    "priority": "normal",
+    "done": false
+  },
+  {
+    "id": "move2027-b13",
+    "recordType": "budget",
+    "title": "추가 예비비",
+    "cost": 1000000,
+    "actualCost": 0,
+    "due": "",
+    "memo": "잠정 견적 · 실제 견적 확인 후 수정",
+    "budgetGroup": "other",
     "priority": "normal",
     "done": false
   },
   {
     "id": "move2027-c0",
     "recordType": "check",
-    "title": "23평 세입자 조기 인도 합의",
-    "due": "",
+    "title": "23평 신규 전세계약·2/1 입주 확정",
+    "due": "2026-12-06",
     "memo": "",
     "priority": "high",
     "done": false,
@@ -359,8 +468,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c1",
     "recordType": "check",
-    "title": "31평 세입자 퇴거일 합의",
-    "due": "",
+    "title": "31평 기존 세입자 2/1 조기퇴거 서면 합의",
+    "due": "2026-12-06",
     "memo": "",
     "priority": "high",
     "done": false,
@@ -370,8 +479,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c2",
     "recordType": "check",
-    "title": "대출 심사 및 실행 확인",
-    "due": "",
+    "title": "신한은행 승인 유효기간·2/1 실행 조건 확인",
+    "due": "2026-12-15",
     "memo": "",
     "priority": "high",
     "done": false,
@@ -381,8 +490,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c3",
     "recordType": "check",
-    "title": "보관이사 견적 비교",
-    "due": "",
+    "title": "보관이사업체 3곳 견적·15일 보관 조건 비교",
+    "due": "2026-12-13",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -392,8 +501,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c4",
     "recordType": "check",
-    "title": "단기임대 예약",
-    "due": "",
+    "title": "31평 샷시업체 3곳 견적·숙련팀·시공사양 확인",
+    "due": "2026-12-20",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -403,8 +512,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c5",
     "recordType": "check",
-    "title": "23평 누수·보수 견적",
-    "due": "",
+    "title": "31평 세입자와 샷시 사전 실측 협의",
+    "due": "2026-12-13",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -414,8 +523,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c6",
     "recordType": "check",
-    "title": "23평 도배·장판·청소 예약",
-    "due": "",
+    "title": "23평 누수·전기·도배장판·청소 예약",
+    "due": "2026-12-20",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -425,8 +534,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c7",
     "recordType": "check",
-    "title": "31평 샷시 실측·계약",
-    "due": "",
+    "title": "31평 샷시·도배·청소 공사일 예약",
+    "due": "2026-12-31",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -436,8 +545,8 @@ function initialMoveProject() {
   {
     "id": "move2027-c8",
     "recordType": "check",
-    "title": "31평 도배·청소 예약",
-    "due": "",
+    "title": "어머니 집 임시거주 일정 확인",
+    "due": "2026-12-31",
     "memo": "",
     "priority": "normal",
     "done": false,
@@ -447,10 +556,120 @@ function initialMoveProject() {
   {
     "id": "move2027-c9",
     "recordType": "check",
-    "title": "2/23 잔금 입출금 순서표 작성",
-    "due": "",
+    "title": "1/4 대출심사 접수서류 준비",
+    "due": "2026-12-31",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c10",
+    "recordType": "check",
+    "title": "잔금 입금·대출·보증금 반환 순서표 확정",
+    "due": "2027-01-22",
     "memo": "",
     "priority": "high",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c11",
+    "recordType": "check",
+    "title": "LG 2in1 에어컨 철거·재설치 전문기사 예약",
+    "due": "2027-01-15",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c12",
+    "recordType": "check",
+    "title": "LG 드럼세탁기 이사업체 운반·급배수 설치 확인",
+    "due": "2027-01-15",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c13",
+    "recordType": "check",
+    "title": "냉장고 식품 비우기·건조·보관방법 확인",
+    "due": "2027-01-24",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c14",
+    "recordType": "check",
+    "title": "SK 식기세척기 철거·재설치 예약",
+    "due": "2027-01-15",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c15",
+    "recordType": "check",
+    "title": "음식물처리기 철거·기존 배수구 복구·재설치 적법성 확인",
+    "due": "2027-01-15",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c16",
+    "recordType": "check",
+    "title": "TV 운반·인터넷 IPTV 이전설치 예약",
+    "due": "2027-01-22",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c17",
+    "recordType": "check",
+    "title": "슈로스바 분해·운반 및 전문 벽체 고정 예약",
+    "due": "2027-01-15",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c18",
+    "recordType": "check",
+    "title": "보관창고 동파·파손 보상 및 연휴 반입일 확인",
+    "due": "2026-12-20",
+    "memo": "",
+    "priority": "normal",
+    "done": false,
+    "cost": 0,
+    "actualCost": 0
+  },
+  {
+    "id": "move2027-c19",
+    "recordType": "check",
+    "title": "장기수선충당금 실제 정산액·중개수수료 확인",
+    "due": "2027-01-22",
+    "memo": "",
+    "priority": "normal",
     "done": false,
     "cost": 0,
     "actualCost": 0
@@ -459,7 +678,15 @@ function initialMoveProject() {
 }
 function migrateMoveProject(data) {
  if (data.moveProjectVersion !== MOVE_PROJECT_VERSION) {
-   data.moveItems = initialMoveProject();
+   const old = Array.isArray(data.moveItems) ? data.moveItems : [];
+   const defaults = initialMoveProject();
+   // 기존 사용자가 수정한 완료/실제지출/메모는 유지하고, 기존 일정·예산은 새 계획으로 교체.
+   const previous = new Map(old.filter(x=>/^move2027-[sbc]\d+$/.test(x.id||"")).map(x=>[x.id,x]));
+   data.moveItems = defaults.map(item=>{
+     const prior=previous.get(item.id);
+     if (!prior || data.moveProjectVersion !== "2027-feb01-v2") return item;
+     return {...item,done:!!prior.done,actualCost:prior.actualCost||0};
+   }).concat(old.filter(x=>!/^move2027-[sbc]\d+$/.test(x.id||"")));
    data.moveProjectVersion = MOVE_PROJECT_VERSION;
  }
  return data;
@@ -467,7 +694,7 @@ function migrateMoveProject(data) {
 function moveBudgetTotals() {
  const rows=store.data.moveItems.filter(x=>x.recordType==="budget");
  const base=rows.reduce((sum,x)=>sum+n(x.cost),0), actual=rows.reduce((sum,x)=>sum+n(x.actualCost),0);
- const reserve=Math.round(base*0.1);
+ const reserve=0;
  return {base,reserve,total:base+reserve,actual};
 }
 function manwon(value) { return new Intl.NumberFormat("ko-KR",{maximumFractionDigits:4}).format(n(value)/10000)+"만 원"; }
@@ -994,7 +1221,7 @@ function travelView() {
   <section class="tripGrid">${items.length ? items.map(item => `<article class="tripCard"><header><span>${item.type === "plan" ? "계획" : "기록"}</span>${actionButtons("trips", item.id)}</header><h3>${esc(item.title)}</h3><p>📍 ${esc(item.destination)}<br>🗓 ${item.start || "-"} ~ ${item.end || "-"}<br>₩ ${won(item.budget)}</p>${item.memo ? `<small>${esc(item.memo)}</small>` : ""}</article>`).join("") : empty("✈", "첫 여행을 추가해 보세요.")}</section>`;
 }
 
-const MOVE_BUDGET_GROUPS = [["stay","이사·임시거주"],["small","23평 공사"],["large","31평 공사"],["contract","계약·정산"],["other","기타"]];
+const MOVE_BUDGET_GROUPS = [["stay","보관이사·폐기물"],["small","23평 공사"],["large","31평 공사"],["contract","계약·정산"],["other","기타"]];
 function moveBudgetGroup(item) {
  if (MOVE_BUDGET_GROUPS.some(([key])=>key===item.budgetGroup)) return item.budgetGroup;
  if (/중개|장기수선|정산/.test(item.title)) return "contract";
@@ -1049,10 +1276,10 @@ function moveView() {
  const t=moveBudgetTotals(), checks=store.data.moveItems.filter(x=>x.recordType==="check"), done=checks.filter(x=>x.done).length;
  return `${pageHead("2027 이사 프로젝트","계획부터 잔금, 공사와 입주까지 한눈에 관리해요.")}
  <nav class="projectJump" aria-label="이사 프로젝트 영역"><a href="#moveSchedule" data-do="moveJump" data-target="moveSchedule">일정관리</a><a href="#moveBudget" data-do="moveJump" data-target="moveBudget">예산</a><a href="#moveChecklist" data-do="moveJump" data-target="moveChecklist">체크리스트</a></nav>
- <section class="stats">${stat("기본 예산",`<span data-move-total="base">${manwon(t.base)}</span>`,"예상비용 합계","")}${stat("예비비 10%",`<span data-move-total="reserve">${manwon(t.reserve)}</span>`,"기본 예산의 10%","")}${stat("총 준비 예산",`<span data-move-total="total">${manwon(t.total)}</span>`,"기본 + 예비비","")}${stat("준비 완료",done+" / "+checks.length,"체크리스트 기준","")}</section>
- <aside class="projectNotice"><strong>진행 전 확인</strong><p>모든 예산은 추정치이며, 보증금 반환 및 기존 대출 상환은 별도입니다. 2/20 공사 시작 전 23평 인도 가능 여부를 반드시 확인해 주세요. 신한은행 3,500만 원은 대출 심사 접수 목표이며 승인·실행이 확정된 금액이 아닙니다.</p></aside>
- <section class="panel space" id="moveSchedule"><header class="panelHead"><div><h2>01 · 일정관리</h2><p>2027년 2월 · 계획 변경 시 각 항목을 수정하세요</p></div><button class="primary" data-do="moveItem" data-type="schedule">일정 추가</button></header><div class="panelBody moveSchedule">${moveProjectRows("schedule")}</div></section>
- <section class="panel space" id="moveBudget"><header class="panelHead"><div><h2>02 · 예산</h2><p>금액을 바로 입력하세요 · 단위: 만 원 · 소계와 총액 자동 계산</p></div><button class="primary" data-do="moveItem" data-type="budget">예산 추가</button></header><div class="panelBody"><div class="moveBudgetSummary"><span>실제 사용 <b data-move-total="actual">${manwon(t.actual)}</b></span><span>총예산 대비 잔액 <b data-move-total="remaining">${manwon(t.total-t.actual)}</b></span></div><p class="help">예: 220 입력 = 220만 원. 입력칸을 나오면 저장돼요. 상세에서 실제비용·분류·메모를 수정하거나 삭제할 수 있어요. 가계부·대출에는 중복 등록하지 않습니다.</p>${moveBudgetGrid()}<div class="budgetSaveRow"><small>예비비 10% 포함 총예산 <b data-move-total="total">${manwon(t.total)}</b></small><button class="primary" data-do="saveAll">예산 저장</button></div></div></section>
+ <section class="stats">${stat("기본 예산",`<span data-move-total="base">${manwon(t.base)}</span>`,"예상비용 합계","")}${stat("보증금 차액",`3,500만 원`,"대출 3,500만 원 예정","")}${stat("이사·공사 총예산",`<span data-move-total="total">${manwon(t.total)}</span>`,"예비비 100만 원 포함","")}${stat("준비 완료",done+" / "+checks.length,"체크리스트 기준","")}</section>
+ <aside class="projectNotice"><strong>진행 전 확인</strong><p>2027년 2월 1일 동시 잔금 예정 · 1월 27일 보관이사 · 어머니 집 임시거주 · 2월 11일 입주 목표. 보증금 차액 3,500만 원은 공사비 2,725만 원과 별도이며, 신한은행 대출은 승인·실행 전입니다. 샷시 및 공사 일정은 업체 확인이 필요합니다.</p></aside>
+ <section class="panel space" id="moveSchedule"><header class="panelHead"><div><h2>01 · 일정관리</h2><p>2026년 12월~2027년 2월 · 일정별 진행상황 관리</p></div><button class="primary" data-do="moveItem" data-type="schedule">일정 추가</button></header><div class="panelBody moveSchedule">${moveProjectRows("schedule")}</div></section>
+ <section class="panel space" id="moveBudget"><header class="panelHead"><div><h2>02 · 예산</h2><p>금액을 바로 입력하세요 · 단위: 만 원 · 소계와 총액 자동 계산</p></div><button class="primary" data-do="moveItem" data-type="budget">예산 추가</button></header><div class="panelBody"><div class="moveBudgetSummary"><span>실제 사용 <b data-move-total="actual">${manwon(t.actual)}</b></span><span>총예산 대비 잔액 <b data-move-total="remaining">${manwon(t.total-t.actual)}</b></span></div><p class="help">예: 220 입력 = 220만 원. 입력칸을 나오면 저장돼요. 상세에서 실제비용·분류·메모를 수정하거나 삭제할 수 있어요. 가계부·대출에는 중복 등록하지 않습니다.</p>${moveBudgetGrid()}<div class="budgetSaveRow"><small>추가 예비비 100만 원 포함 총예산 <b data-move-total="total">${manwon(t.total)}</b></small><button class="primary" data-do="saveAll">예산 저장</button></div></div></section>
  <section class="panel space" id="moveChecklist"><header class="panelHead"><div><h2>03 · 체크리스트</h2><p>우선 확인할 합의·대출·잔금 순서를 먼저 점검하세요</p></div><button class="primary" data-do="moveItem" data-type="check">할 일 추가</button></header><div class="panelBody moveChecklistGrid">${moveProjectRows("check")}</div></section>
  <article class="panel space"><header class="panelHead"><h2>부동산 자산현황</h2><button class="textBtn" data-do="assetItem" data-section="properties">추가</button></header><div class="panelBody">${assetRows("properties")}</div></article>`;
 }
